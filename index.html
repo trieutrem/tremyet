@@ -602,6 +602,23 @@
   @keyframes winFade { from{opacity:0} to{opacity:1} }
   @keyframes winPop { from{opacity:0; transform:translateY(18px) scale(.94)} to{opacity:1; transform:none} }
   @media (prefers-reduced-motion: reduce) { .win-pop, .win-card { animation:none; } }
+
+  /* Announcement popup (before / after login) */
+  .ann-pop { position:fixed; inset:0; z-index:10001; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(8,2,5,.84); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); animation:annFade .4s ease both; }
+  .ann-card { position:relative; overflow:hidden; width:min(100%,420px); max-height:min(86vh,640px); display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center; padding:34px 26px 26px; border-radius:24px; border:1px solid rgba(201,161,92,.55); background:radial-gradient(ellipse at 50% -10%, rgba(163,23,61,.6), rgba(26,8,15,.97) 62%); box-shadow:0 34px 100px rgba(0,0,0,.6), 0 0 70px rgba(201,161,92,.12), inset 0 1px 0 rgba(255,255,255,.06); animation:annRise .6s cubic-bezier(.2,1.15,.3,1) both; }
+  .ann-glow { position:absolute; top:-70px; left:50%; width:240px; height:240px; margin-left:-120px; border-radius:50%; background:radial-gradient(circle, rgba(240,64,90,.35), transparent 65%); pointer-events:none; }
+  .ann-icon { position:relative; width:60px; height:60px; border-radius:50%; display:grid; place-items:center; color:var(--gold); border:1px solid rgba(201,161,92,.6); background:rgba(201,161,92,.1); box-shadow:0 0 30px rgba(201,161,92,.25); animation:annSpin 1.2s cubic-bezier(.2,1,.3,1) both; }
+  .ann-eyebrow { position:relative; margin:6px 0 0; font-size:.68rem; letter-spacing:.3em; text-transform:uppercase; color:var(--gold); }
+  .ann-title { position:relative; margin:0; font-size:clamp(1.7rem,7vw,2.1rem); line-height:1.15; color:var(--bone); letter-spacing:.02em; }
+  .ann-rule { position:relative; width:64px; height:1px; margin:4px 0 2px; background:linear-gradient(90deg,transparent,var(--gold),transparent); }
+  .ann-text { position:relative; margin:0; max-width:100%; overflow-y:auto; white-space:pre-line; overflow-wrap:anywhere; line-height:1.7; font-size:1.02rem; color:var(--bone); padding:2px 4px; }
+  .ann-time { position:relative; margin:2px 0 0; font-size:.74rem; color:var(--ash); letter-spacing:.04em; }
+  .ann-time:empty { display:none; }
+  .ann-ok { position:relative; margin-top:10px; min-width:170px; min-height:46px; font-size:1rem; }
+  @keyframes annFade { from{opacity:0} to{opacity:1} }
+  @keyframes annRise { from{opacity:0; transform:translateY(24px) scale(.94)} to{opacity:1; transform:none} }
+  @keyframes annSpin { from{opacity:0; transform:rotate(-90deg) scale(.6)} to{opacity:1; transform:none} }
+  @media (prefers-reduced-motion: reduce) { .ann-pop, .ann-card, .ann-icon { animation:none; } }
 </style>
 </head>
 <body>
@@ -637,6 +654,21 @@
 </section>
 
 
+
+<div class="ann-pop" id="ann-pop" role="dialog" aria-modal="true" aria-labelledby="ann-title" hidden>
+  <div class="ann-card">
+    <div class="ann-glow" aria-hidden="true"></div>
+    <div class="ann-icon" aria-hidden="true">
+      <svg viewBox="0 0 48 48" width="30" height="30"><path d="M24 4l4.6 14.4L43 24l-14.4 5.6L24 44l-4.6-14.4L5 24l14.4-5.6z" fill="currentColor"/></svg>
+    </div>
+    <p class="ann-eyebrow">Thông báo từ chủ trang</p>
+    <h2 class="ann-title" id="ann-title">Có tin cho bạn</h2>
+    <div class="ann-rule" aria-hidden="true"></div>
+    <p class="ann-text" id="ann-text"></p>
+    <p class="ann-time" id="ann-time"></p>
+    <button class="btn ann-ok" type="button" id="ann-ok">Đã hiểu</button>
+  </div>
+</div>
 
 <div class="win-pop" id="win-pop" role="dialog" aria-modal="true" aria-labelledby="win-title" hidden>
   <div class="win-card">
@@ -676,10 +708,6 @@
 
   <main>
     <div class="wrap">
-      <aside class="announce" id="announce" role="status" hidden>
-        <p id="announce-text"></p>
-        <button class="btn ghost" type="button" id="announce-x">Ẩn</button>
-      </aside>
       <section class="hero">
         <div>
           <p class="eyebrow">Cung hoàng đạo: Scorpio</p>
@@ -2257,25 +2285,51 @@
     }).then(function () { rsvpSending = false; rsvpSend.disabled = false; });
   });
 
-  // Thông báo của chủ trang và số người đã xác nhận
-  var annEl = $('announce'), ANN_KEY = 'thienyet.antares.ann';
+  // Thông báo của chủ trang: popup. "ann" hiện sau khi đăng nhập, "ann2" hiện ngay ở màn hình đăng nhập.
+  var ANN_KEY = 'thienyet.antares.ann', ANN2_KEY = 'thienyet.antares.ann2';
+  var annPop = $('ann-pop'), annInfo = null, annKey = '', annId = '', annPrevOverflow = '';
+  function annSeen(k) { try { return localStorage.getItem(k) || ''; } catch (err) { return ''; } }
+  function annTimeText(id) {
+    var n = Number(id); if (!(n > 1e11)) return '';
+    var d = new Date(n);
+    function p(x) { return (x < 10 ? '0' : '') + x; }
+    return 'Đăng lúc ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ' · ' + p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear();
+  }
+  function showAnn(key, text, id, title) {
+    annKey = key; annId = String(id);
+    $('ann-title').textContent = title;
+    $('ann-text').textContent = text;
+    $('ann-time').textContent = annTimeText(id);
+    annPrevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    annPop.hidden = false;
+    var ok = $('ann-ok'); if (ok) setTimeout(function () { ok.focus(); }, 60);
+  }
+  function closeAnn() {
+    if (annPop.hidden) return;
+    try { localStorage.setItem(annKey, annId); } catch (err) { /* ignore */ }
+    annPop.hidden = true;
+    document.body.style.overflow = annPrevOverflow;
+    setTimeout(maybeAnnounce, 300);
+  }
+  function maybeAnnounce() {
+    if (!annInfo || !annPop.hidden) return;
+    if (saved && !app.hidden) {
+      if (annInfo.announce && String(annInfo.announceId) !== annSeen(ANN_KEY)) showAnn(ANN_KEY, annInfo.announce, annInfo.announceId, 'Có tin mới cho bạn');
+    } else if (!saved && annInfo.announce2 && String(annInfo.announce2Id) !== annSeen(ANN2_KEY)) {
+      showAnn(ANN2_KEY, annInfo.announce2, annInfo.announce2Id, 'Đọc nhanh trước khi vào');
+    }
+  }
   function loadInfo() {
     callServer({ action: 'info' }).then(function (d) {
       if (!d || !d.ok) return;
-      var n = Number(d.going) || 0, txt = n > 0 ? 'Đã có ' + n + ' người xác nhận sẽ đến.' : '';
-      $('going-note').textContent = txt; $('going-note').hidden = !n;
-      $('rsvp-count').textContent = txt; $('rsvp-count').hidden = !n;
-      var seen = '';
-      try { seen = localStorage.getItem(ANN_KEY) || ''; } catch (err) { /* ignore */ }
-      if (d.announce && String(d.announceId) !== seen) {
-        $('announce-text').textContent = d.announce; annEl.hidden = false; annEl.setAttribute('data-id', String(d.announceId));
-      } else { annEl.hidden = true; }
+      annInfo = d;
+      setTimeout(maybeAnnounce, saved ? 700 : 250);
     }).catch(function () { /* không có mạng: bỏ qua */ });
   }
-  $('announce-x').addEventListener('click', function () {
-    try { localStorage.setItem(ANN_KEY, annEl.getAttribute('data-id') || ''); } catch (err) { /* ignore */ }
-    annEl.hidden = true;
-  });
+  $('ann-ok').addEventListener('click', closeAnn);
+  annPop.addEventListener('click', function (e) { if (e.target === annPop) closeAnn(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !annPop.hidden) closeAnn(); });
 
   function openInvite(opener) {
     if (!saved) return;
@@ -2566,7 +2620,7 @@
   });
 
   /* ---------- Returning visitor: skip the gate ---------- */
-  if (saved) enterApp(false);
+  if (saved) enterApp(false); else loadInfo();
 })();
 </script>
 

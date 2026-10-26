@@ -52,6 +52,11 @@
   .btn.danger { background: #8a1020; border-color: rgba(240,64,90,.45); }
   .btn.danger:hover:not(:disabled) { background: #a3142a; }
   .info .n { font-weight: 500; overflow-wrap: anywhere; }
+  .hintline { margin: 4px 0 8px; color: var(--ash); font-size: .85rem; }
+  .annbox { display: grid; gap: 10px; max-width: 620px; }
+  .annbox textarea { width: 100%; resize: vertical; min-height: 84px; background: rgba(239,220,210,.06); border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; font: inherit; color: inherit; line-height: 1.5; }
+  .annbox textarea:focus { outline: none; border-color: var(--antares); }
+  .acts.left { justify-content: flex-start; }
   .badge.old { color: var(--gold); border-color: rgba(201,161,92,.4); font-size: .75rem; padding: 2px 10px; margin-left: 6px; }
   @media (max-width: 560px) { ul.rows li.req { flex-direction: column; align-items: stretch; } .acts { justify-content: flex-start; } }
 </style>
@@ -75,7 +80,6 @@
         <div class="stat"><b id="s-given">0</b>đã trao</div>
         <div class="stat"><b id="s-wish">0</b>lời chúc chờ duyệt</div>
         <div class="stat"><b id="s-req">0</b>yêu cầu thêm lượt</div>
-        <div class="stat"><b id="s-going">0</b>người sẽ đến</div>
       </div>
       <div>
         <button class="btn ghost" type="button" id="refresh">Tải lại</button>
@@ -96,26 +100,20 @@
     <ul class="rows" id="accs"></ul>
 
     <h2>Thông báo từ chủ trang</h2>
-    <div class="tools">
-      <input id="ann" type="text" class="grow" maxlength="300" placeholder="Nội dung hiện ở đầu trang người chơi (để trống rồi bấm Đăng để gỡ)" aria-label="Thông báo">
-      <button class="btn" type="button" id="ann-send">Đăng</button>
+    <p class="m hintline">Hiện dạng popup <b>sau khi người chơi đăng nhập</b>. Mỗi lần bấm Đăng, ai chưa xem bản này sẽ thấy popup một lần.</p>
+    <div class="annbox">
+      <textarea id="ann" maxlength="500" rows="3" placeholder="Nội dung thông báo (có thể xuống dòng)" aria-label="Thông báo sau đăng nhập"></textarea>
+      <div class="acts left"><button class="btn" type="button" id="ann-send">Đăng</button><button class="btn ghost" type="button" id="ann-clear">Gỡ thông báo</button></div>
     </div>
     <p class="msg" id="ann-msg" role="status" aria-live="polite"></p>
 
-    <h2>Xác nhận tham dự</h2>
-    <div class="stats small">
-      <div class="stat"><b id="r-yes">0</b>người chắc chắn đến</div>
-      <div class="stat"><b id="r-maybe">0</b>người có thể đến</div>
-      <div class="stat"><b id="r-no">0</b>thiệp không đến được</div>
+    <h2>Thông báo từ chủ trang ver2</h2>
+    <p class="m hintline">Hiện dạng popup <b>ngay ở màn hình đăng nhập</b>, trước khi người chơi vào trang.</p>
+    <div class="annbox">
+      <textarea id="ann2" maxlength="500" rows="3" placeholder="Nội dung thông báo hiện trước khi đăng nhập" aria-label="Thông báo trước đăng nhập"></textarea>
+      <div class="acts left"><button class="btn" type="button" id="ann2-send">Đăng</button><button class="btn ghost" type="button" id="ann2-clear">Gỡ thông báo</button></div>
     </div>
-    <div class="tools">
-      <select id="rsvp-filter" aria-label="Lọc xác nhận">
-        <option value="all">Tất cả</option><option value="yes">Chắc chắn đến</option>
-        <option value="maybe">Có thể đến</option><option value="no">Không đến được</option>
-      </select>
-      <button class="btn ghost" type="button" id="csv-rsvp">Tải CSV</button>
-    </div>
-    <ul class="rows" id="rsvps"></ul>
+    <p class="msg" id="ann2-msg" role="status" aria-live="polite"></p>
 
     <h2>Yêu cầu cấp thêm lượt</h2>
     <div class="tools"><label class="chk"><input type="checkbox" id="only-req" checked> Chỉ chưa xử lý</label></div>
@@ -140,7 +138,7 @@
 (function () {
   'use strict';
   var SHEET_URL = 'https://script.google.com/macros/s/AKfycbyQlMvlxL35RJGQIVX3_I97QS67b0iEvic2TxsOcAhoicGjnn7EuUhVlQcOs_hS6I3_VA/exec';
-  var pw = '', data = { spins: [], wishes: [], requests: [], rsvps: [] }, accounts = [], accError = '';
+  var pw = '', data = { spins: [], wishes: [], requests: [] }, accounts = [], accError = '';
   function $(id) { return document.getElementById(id); }
 
   function call(payload) {
@@ -184,31 +182,6 @@
     }).catch(function () { $('msg2').textContent = 'Không kết nối được máy chủ.'; }).then(done);
   }
 
-  var RSVP_TXT = { yes: 'Chắc chắn đến', maybe: 'Có thể đến', no: 'Không đến được' };
-
-  function renderRsvp() {
-    var list = data.rsvps || [], f = $('rsvp-filter').value, ul = $('rsvps'), yes = 0, maybe = 0, no = 0, shown = 0;
-    ul.textContent = '';
-    list.forEach(function (r) {
-      var n = 1 + (r.plus || 0);
-      if (r.status === 'yes') yes += n; else if (r.status === 'maybe') maybe += n; else if (r.status === 'no') no++;
-    });
-    $('r-yes').textContent = yes; $('r-maybe').textContent = maybe; $('r-no').textContent = no; $('s-going').textContent = yes;
-    list.forEach(function (r) {
-      if (f !== 'all' && r.status !== f) return;
-      shown++;
-      var li = el('li'), info = el('div', 'info');
-      var t = el('div', 't'); t.appendChild(document.createTextNode(r.name + (r.plus ? ' +' + r.plus + ' người' : '')));
-      info.appendChild(t);
-      if (r.note) info.appendChild(el('div', 't reason', r.note));
-      info.appendChild(el('div', 'm', 'ID ' + r.id + ' · ' + r.time));
-      li.appendChild(info);
-      li.appendChild(el('span', 'badge ' + (r.status === 'yes' ? 'ok' : r.status), RSVP_TXT[r.status] || r.status));
-      ul.appendChild(li);
-    });
-    if (!shown) ul.appendChild(el('li', 'empty', 'Chưa có xác nhận nào.'));
-  }
-
   // CSV mở được bằng Excel (có BOM). Ô bắt đầu bằng = + - @ được chặn để không bị hiểu thành công thức.
   function csvCell(v) {
     var t = String(v == null ? '' : v);
@@ -224,7 +197,6 @@
   }
 
   function render() {
-    renderRsvp();
     var reqs = $('reqs'), reqOnly = $('only-req').checked, pendingReq = 0, shownReq = 0;
     reqs.textContent = '';
     (data.requests || []).forEach(function (r) { if (r.status === 'wait') pendingReq++; });
@@ -361,7 +333,7 @@
     $('msg').textContent = 'Đang tải...';
     return call({ action: 'admin_list' }).then(function (d) {
       if (!d || !d.ok) { $('msg').textContent = errText(d); return false; }
-      data = d; $('msg').textContent = ''; $('ann').value = d.announce || '';
+      data = d; $('msg').textContent = ''; $('ann').value = d.announce || ''; $('ann2').value = d.announce2 || '';
       $('login').hidden = true; $('panel').hidden = false;
       render();
       loadAccounts();
@@ -376,12 +348,11 @@
     load().then(function (ok) { $('go').disabled = false; if (!ok) pw = ''; $('pw').value = ''; });
   });
   $('refresh').addEventListener('click', load);
-  $('out').addEventListener('click', function () { pw = ''; data = { spins: [], wishes: [], requests: [], rsvps: [] }; accounts = []; accError = ''; $('panel').hidden = true; $('login').hidden = false; $('msg').textContent = ''; $('pw').focus(); });
+  $('out').addEventListener('click', function () { pw = ''; data = { spins: [], wishes: [], requests: [] }; accounts = []; accError = ''; $('panel').hidden = true; $('login').hidden = false; $('msg').textContent = ''; $('pw').focus(); });
   $('q').addEventListener('input', render);
   $('only-open').addEventListener('change', render);
   $('only-wait').addEventListener('change', render);
   $('only-req').addEventListener('change', render);
-  $('rsvp-filter').addEventListener('change', renderRsvp);
   $('acc-q').addEventListener('input', renderAccounts);
   $('acc-sort').addEventListener('change', renderAccounts);
   $('csv-accs').addEventListener('click', function () {
@@ -389,18 +360,25 @@
       accounts.map(function (a) { return [a.id, a.name, a.first, a.last, a.logins, a.spins, a.items, a.wishes ? (a.wishApproved ? 'đã duyệt' : 'chờ duyệt') : '', a.requests]; }));
   });
 
-  $('ann-send').addEventListener('click', function () {
-    var b = $('ann-send'), text = $('ann').value.replace(/\s+/g, ' ').trim();
-    b.disabled = true; $('ann-msg').textContent = 'Đang lưu...';
-    call({ action: 'admin_announce', text: text }).then(function (d) {
-      $('ann-msg').textContent = (!d || !d.ok) ? errText(d) : (d.text ? 'Đã đăng. Người chơi sẽ thấy ở đầu trang.' : 'Đã gỡ thông báo.');
-      if (d && d.ok) { data.announce = d.text; $('ann').value = d.text; }
-    }).catch(function () { $('ann-msg').textContent = 'Không kết nối được máy chủ.'; }).then(function () { b.disabled = false; });
-  });
-  $('csv-rsvp').addEventListener('click', function () {
-    downloadCsv('xac-nhan-tham-du.csv', ['Thời gian', 'ID', 'Tên', 'Trạng thái', 'Đi cùng', 'Lời nhắn'],
-      (data.rsvps || []).map(function (r) { return [r.time, r.id, r.name, RSVP_TXT[r.status] || r.status, r.plus, r.note]; }));
-  });
+  function bindAnn(inputId, sendId, clearId, msgId, action, key) {
+    function save(text, btn) {
+      var s = $(sendId), c = $(clearId), m = $(msgId);
+      s.disabled = true; c.disabled = true; m.textContent = 'Đang lưu...';
+      call({ action: action, text: text }).then(function (d) {
+        if (!d || !d.ok) { m.textContent = errText(d); return; }
+        data[key] = d.text; $(inputId).value = d.text;
+        m.textContent = d.text ? 'Đã đăng. Người chơi sẽ thấy popup này một lần.' : 'Đã gỡ thông báo.';
+      }).catch(function () { m.textContent = 'Không kết nối được máy chủ.'; }).then(function () { s.disabled = false; c.disabled = false; });
+    }
+    $(sendId).addEventListener('click', function () {
+      var text = $(inputId).value.replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
+      if (!text) { $(msgId).textContent = 'Hãy nhập nội dung, hoặc bấm "Gỡ thông báo" để xóa.'; return; }
+      save(text);
+    });
+    $(clearId).addEventListener('click', function () { $(inputId).value = ''; save(''); });
+  }
+  bindAnn('ann', 'ann-send', 'ann-clear', 'ann-msg', 'admin_announce', 'announce');
+  bindAnn('ann2', 'ann2-send', 'ann2-clear', 'ann2-msg', 'admin_announce2', 'announce2');
   $('csv-spins').addEventListener('click', function () {
     downloadCsv('nguoi-trung-thuong.csv', ['Thời gian', 'ID', 'Tên', 'Vật phẩm', 'Đã trao'],
       (data.spins || []).map(function (r) { return [r.time, r.id, r.name, r.item, r.given ? 'x' : '']; }));
