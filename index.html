@@ -687,10 +687,6 @@
           <p>Thiên Yết, đừng đẩy tôi vào lối ngỏ, lỏ nhỏ với nọc độc của toiiii.</p>
           <p class="personal-greeting" id="personal-greeting" hidden></p>
           <p class="fact">Antares là đại sao đỏ siêu khổng lồ.</p>
-          <div class="hero-actions">
-            <a class="btn" href="#bday">Khám phá hành trình <span aria-hidden="true">↘</span></a>
-            <button class="btn ghost" type="button" id="hero-open-invite">Mở thiệp mời</button>
-          </div>
         </div>
         <div class="hero-sky" id="hero-sky" role="img" aria-label="Sơ đồ chòm sao Thiên Yết với sao Antares ở thân"></div>
       </section>
@@ -701,7 +697,7 @@
         <div class="cake-actions">
           <button class="btn" type="button" id="open-cake">Thổi nến</button>
           <button class="btn ghost" type="button" id="open-invite-2">Thiệp mời</button>
-          <button class="btn ghost" type="button" id="birthday-music">Phát nhạc sinh nhật ♫</button>
+          <button class="btn ghost" type="button" id="birthday-music">Phát nhạc ♫</button>
         </div>
         <p class="note" id="going-note" hidden></p>
       </section>
@@ -715,28 +711,27 @@
         <div class="cake-actions" style="margin-top:14px">
           <button class="btn ghost" type="button" id="fortune-save">Lưu thẻ bói</button>
         </div>
-        <p class="note" style="margin-top:10px">Chỉ để giải trí. Mỗi ngày một lá, cùng một ID thì cả ngày không đổi.</p>
+        <p class="note" style="margin-top:10px">Mang tính chất phi lý, đừng tin! Thén kìu</p>
       </section>
 
       <section>
         <div class="sec-head row">
           <div>
-            <p class="eyebrow">Lời chúc</p>
-            <h2>Gửi lời chúc sinh nhật</h2>
+            <p class="eyebrow">Thanh âm</p>
+            <h2>"Tâm sự người cung nữ"</h2>
           </div>
-          <button class="btn" type="button" id="open-invite">Thiệp mời</button>
         </div>
         <div class="personal-wish-banner" role="note">
-          <span class="personal-wish-icon" aria-hidden="true">✦</span>
-          <div><strong>Góc lời chúc riêng của bạn</strong><p>Lời chúc chỉ hiển thị trong tài khoản đang đăng nhập sau khi được duyệt; người khác không thấy trên trang của họ.</p></div>
+          <span class="personal-wish-icon" aria-hidden="true">.t.</span>
+          <div><strong>Góc của riêng của bạn</strong></div>
           <button class="btn ghost" type="button" id="wish-refresh">Kiểm tra duyệt</button>
         </div>
         <form class="wish-form" id="wish-form" novalidate>
-          <label class="panel-label" for="wish-text">Mỗi ID gửi được một lời chúc (tối đa 140 ký tự)</label>
-          <textarea id="wish-text" maxlength="140" placeholder="Viết lời chúc của bạn..."></textarea>
+          <label class="panel-label" for="wish-text">Tâm sự tối đa 140 ký tự</label>
+          <textarea id="wish-text" maxlength="140" placeholder="Viết lời "Tâm sự người cung nữ"...></textarea>
           <div class="wish-row">
             <span class="note" id="wish-count">0/140</span>
-            <button class="btn" type="submit" id="wish-send">Gửi lời chúc</button>
+            <button class="btn" type="submit" id="wish-send">Gửi</button>
           </div>
         </form>
         <p class="wish-msg" id="wish-msg" role="status" aria-live="polite"></p>
@@ -780,8 +775,8 @@
           <div class="trait warn"><h3>CC</h3><p>Tốc độ di chuyển khi bắn: ++</p></div>
         </div>
         <div class="match">
-          <div><b>Xuất Phúc</b>Cự Giải, Song Ngư, Ma Kết, Xử Nữ</div>
-          <div><b>Độ bền</b>Sư Tử, Bảo Bình</div>
+          <div><b>Xuất Phúc</b>CG, SN, MK, XN</div>
+          <div><b>Độ bền</b>ST, BB</div>
         </div>
         <p class="note" style="margin-top:18px">Chiêm bao trí.</p>
       </section>
@@ -1359,7 +1354,7 @@
     $('pname-show').value = saved.name;
     var greeting = $('personal-greeting');
     if (greeting) {
-      greeting.textContent = 'Chào ' + saved.name + ' — đêm sao Antares hôm nay có một góc dành riêng cho bạn.';
+      greeting.textContent = 'Chào ' + saved.name;
       greeting.hidden = false;
     }
     resetWheelUI();
@@ -2015,7 +2010,7 @@
     if (!w || !w.exists) {
       card.hidden = true;
       wishEmpty.className = 'note';
-      wishEmpty.textContent = 'Bạn chưa gửi lời chúc nào. Hãy để lại một lời nhắn thật đặc biệt nhé!';
+      wishEmpty.textContent = 'Bạn chưa gửi nào. Hãy để lại một lời nhắn thật đặc biệt nhé!';
       if (saved) { saved.wished = false; saveState(); }
       return;
     }
@@ -2023,7 +2018,7 @@
     $('my-wish-text').textContent = String(w.text || '');
     $('my-wish-meta').textContent = '— ' + String(w.name || (saved && saved.name) || 'Bạn') + (w.time ? ' · Gửi lúc ' + String(w.time) : '');
     status.className = 'wish-status ' + (w.approved ? 'approved' : 'pending');
-    status.textContent = w.approved ? '✦ ĐÃ ĐƯỢC DUYỆT' : '◷ ĐANG CHỜ DUYỆT';
+    status.textContent = w.approved ? '# ĐÃ ĐƯỢC DUYỆT' : '◷ ĐANG CHỜ DUYỆT';
     wishEmpty.className = 'note';
     wishEmpty.textContent = w.approved ? 'Đây là lời chúc riêng của tài khoản này.' : 'Lời chúc đang chờ quản trị viên duyệt. Bạn có thể quay lại kiểm tra sau.';
     if (saved && !saved.wished) { saved.wished = true; saveState(); }
