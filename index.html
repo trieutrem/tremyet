@@ -583,6 +583,25 @@
   .gate-sky { display:none !important; }
   .gate .gate-card { box-shadow:none !important; background:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; border:0 !important; }
   body::before { display:none !important; }
+
+  /* RSVP removed from the invitation */
+  #rsvp-form, #rsvp-count, #going-note { display:none !important; }
+
+  /* Win popup after the wheel stops */
+  .win-pop { position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(8,2,5,.82); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); animation:winFade .35s ease both; }
+  .win-card { width:min(100%,380px); text-align:center; display:flex; flex-direction:column; align-items:center; gap:10px; padding:28px 22px 24px; border-radius:22px; border:1px solid rgba(201,161,92,.55); background:radial-gradient(ellipse at 50% 0%, rgba(163,23,61,.55), rgba(24,7,14,.96) 70%); box-shadow:0 30px 90px rgba(0,0,0,.55), 0 0 60px rgba(201,161,92,.12); animation:winPop .5s cubic-bezier(.2,1.2,.3,1) both; }
+  .win-eyebrow { font-size:.7rem; letter-spacing:.28em; text-transform:uppercase; color:var(--gold); margin:0; }
+  .win-card h2 { margin:0; font-size:clamp(2rem,9vw,2.6rem); color:var(--bone); letter-spacing:.04em; }
+  .win-line { margin:0; color:var(--ash); font-size:.95rem; }
+  .win-prize { margin:2px 0 4px; padding:10px 18px; border-radius:14px; border:1px solid rgba(201,161,92,.5); background:rgba(201,161,92,.1); color:var(--gold); font-size:1.35rem; font-weight:600; line-height:1.3; word-break:break-word; }
+  .win-clock { display:flex; gap:8px; margin:6px 0 0; }
+  .win-clock div { min-width:52px; padding:7px 4px 5px; border-radius:10px; background:rgba(0,0,0,.35); border:1px solid rgba(239,220,210,.14); }
+  .win-clock b { display:block; font-size:1.25rem; font-variant-numeric:tabular-nums; color:var(--bone); line-height:1.1; }
+  .win-clock span { font-size:.6rem; letter-spacing:.14em; text-transform:uppercase; color:var(--ash); }
+  .win-small { margin:0 0 6px; font-size:.78rem; color:var(--ash); }
+  @keyframes winFade { from{opacity:0} to{opacity:1} }
+  @keyframes winPop { from{opacity:0; transform:translateY(18px) scale(.94)} to{opacity:1; transform:none} }
+  @media (prefers-reduced-motion: reduce) { .win-pop, .win-card { animation:none; } }
 </style>
 </head>
 <body>
@@ -618,6 +637,24 @@
 </section>
 
 
+
+<div class="win-pop" id="win-pop" role="dialog" aria-modal="true" aria-labelledby="win-title" hidden>
+  <div class="win-card">
+    <p class="win-eyebrow">Vòng quay Thiên Yết</p>
+    <h2 id="win-title">Chúc mừng!</h2>
+    <p class="win-line">Bạn nhận được</p>
+    <p class="win-prize" id="win-prize"></p>
+    <p class="win-line" id="win-deliver"></p>
+    <div class="win-clock" id="win-clock" role="timer" aria-label="Đếm ngược đến lúc gửi quà">
+      <div><b id="wc-d">0</b><span>ngày</span></div>
+      <div><b id="wc-h">00</b><span>giờ</span></div>
+      <div><b id="wc-m">00</b><span>phút</span></div>
+      <div><b id="wc-s">00</b><span>giây</span></div>
+    </div>
+    <p class="win-small" id="win-small">Còn lại đến lúc gửi quà</p>
+    <button class="btn" type="button" id="win-close">Tuyệt vời</button>
+  </div>
+</div>
 <div class="face-overlay" id="face-overlay" role="dialog" aria-modal="true" aria-label="Quét khuôn mặt">
   <div class="face-frame" id="face-frame"><video id="face-video" playsinline muted autoplay></video></div>
   <p class="face-status" id="face-status" aria-live="polite"></p>
@@ -847,7 +884,7 @@
       <button class="btn ghost" type="button" id="invite-cal">Thêm vào lịch</button>
       <button class="btn ghost" type="button" id="invite-share">Chia sẻ link</button>
     </div>
-    <form class="rsvp" id="rsvp-form" novalidate>
+    <form class="rsvp" id="rsvp-form" novalidate hidden>
       <span class="panel-label" id="rsvp-label">Bạn sẽ đến chứ?</span>
       <p class="note" id="rsvp-count" hidden></p>
       <div class="chips" id="rsvp-opts" role="radiogroup" aria-labelledby="rsvp-label">
@@ -1492,6 +1529,39 @@
     });
   }
 
+  /* ---------- Popup chúc mừng sau khi quay ---------- */
+  var GIFT_AT = new Date('2026-11-14T00:00:00+07:00').getTime();   // 00h ngày 14/11/2026 (giờ Việt Nam)
+  var winPop = $('win-pop'), winTimer = 0;
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  function tickWin() {
+    var ms = GIFT_AT - Date.now();
+    if (ms <= 0) {
+      $('wc-d').textContent = '0'; $('wc-h').textContent = '00'; $('wc-m').textContent = '00'; $('wc-s').textContent = '00';
+      $('win-small').textContent = 'Đã đến giờ gửi quà. Quà đang được gửi qua ID của bạn!';
+      if (winTimer) { clearInterval(winTimer); winTimer = 0; }
+      return;
+    }
+    var t = Math.floor(ms / 1000);
+    $('wc-d').textContent = Math.floor(t / 86400);
+    $('wc-h').textContent = pad2(Math.floor(t % 86400 / 3600));
+    $('wc-m').textContent = pad2(Math.floor(t % 3600 / 60));
+    $('wc-s').textContent = pad2(t % 60);
+    $('win-small').textContent = 'Còn lại đến lúc gửi quà';
+  }
+  function closeWin() { winPop.hidden = true; if (winTimer) { clearInterval(winTimer); winTimer = 0; } }
+  function showWinPop(item) {
+    if (!winPop) return;
+    $('win-prize').textContent = item;
+    $('win-deliver').textContent = 'Quà sẽ được gửi qua ID ' + (saved ? saved.id : '') + ' vào lúc 00h00, ngày 14/11/2026.';
+    winPop.hidden = false; tickWin();
+    if (winTimer) clearInterval(winTimer);
+    winTimer = setInterval(tickWin, 1000);
+    setTimeout(function () { var b = $('win-close'); if (b) b.focus(); }, 50);
+  }
+  $('win-close').addEventListener('click', closeWin);
+  winPop.addEventListener('click', function (e) { if (e.target === winPop) closeWin(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !winPop.hidden) closeWin(); });
+
   function animateTo(target) {
     var jitter = (Math.random() - 0.5) * (SLICE * 0.55);
     var desired = mod(-(target * SLICE + SLICE / 2 + jitter), 360);
@@ -1522,6 +1592,7 @@
       paintExtra();
       fireworks();
       fanfare();
+      showWinPop(ITEMS[target]);
     }
     requestAnimationFrame(step);
   }
