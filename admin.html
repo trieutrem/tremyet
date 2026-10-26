@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>Quản trị Thiên Yết</title>
+<style>
+  :root { --void:#0b0508; --wine:#240812; --garnet:#7d1230; --antares:#f0405a; --bone:#efdcd2; --ash:#ab9298; --gold:#c9a15c; --line:rgba(239,220,210,.16); color-scheme: dark; }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { background: var(--void); }
+  body { margin: 0; font: 300 16px/1.6 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif; color: var(--bone); padding: 20px 16px 60px; }
+  main { width: min(100%, 980px); margin-inline: auto; }
+  h1, h2 { font-family: 'Cormorant Garamond', 'Times New Roman', serif; margin: 0; }
+  h1 { font-size: 2rem; } h2 { font-size: 1.5rem; margin-top: 34px; }
+  button, input { font: inherit; color: inherit; }
+  .btn { background: var(--garnet); border: 1px solid transparent; border-radius: 999px; padding: 9px 18px; cursor: pointer; font-weight: 500; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn.ghost { background: transparent; border-color: var(--line); }
+  .btn.on { background: #1f6b3a; }
+  input[type=text], input[type=password] { background: rgba(239,220,210,.06); border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; width: 100%; }
+  input:focus { outline: none; border-color: var(--antares); }
+  .login { display: flex; flex-direction: column; gap: 12px; max-width: 360px; margin-top: 24px; }
+  .msg { color: var(--gold); min-height: 1.4em; }
+  .top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+  .stat { border: 1px solid var(--line); border-radius: 12px; padding: 10px 16px; background: var(--wine); }
+  .stat b { display: block; font-size: 1.5rem; color: var(--antares); font-weight: 600; }
+  .tools { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 12px 0; }
+  .tools input[type=text] { max-width: 320px; }
+  label.chk { display: flex; gap: 8px; align-items: center; color: var(--ash); }
+  ul.rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  ul.rows li { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(36,8,18,.6); }
+  .info { min-width: 0; }
+  .info .t { overflow-wrap: anywhere; }
+  .info .m { font-size: .8rem; color: var(--ash); overflow-wrap: anywhere; }
+  .prize { color: var(--antares); font-weight: 600; }
+  .empty { color: var(--ash); }
+  .acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; flex-shrink: 0; }
+  .qty { width: 72px; background: rgba(239,220,210,.06); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; text-align: center; }
+  .qty:focus { outline: none; border-color: var(--antares); }
+  .badge { font-size: .85rem; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); color: var(--ash); white-space: nowrap; }
+  .badge.ok { color: #7fd6a0; border-color: rgba(127,214,160,.4); }
+  .reason { color: var(--bone); }
+  select { font: inherit; color: inherit; background: rgba(239,220,210,.06); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; }
+  select option { background: var(--wine); color: var(--bone); }
+  .tools .grow { flex: 1 1 260px; max-width: 520px; }
+  .badge.maybe { color: var(--gold); border-color: rgba(201,161,92,.5); }
+  .badge.no { color: var(--ash); }
+  .stats.small .stat b { font-size: 1.25rem; }
+  @media (max-width: 560px) { ul.rows li.req { flex-direction: column; align-items: stretch; } .acts { justify-content: flex-start; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Quản trị Thiên Yết</h1>
+
+  <form class="login" id="login">
+    <label for="pw">Mật khẩu quản trị</label>
+    <input id="pw" type="password" autocomplete="off" required>
+    <button class="btn" type="submit" id="go">Vào</button>
+  </form>
+  <p class="msg" id="msg" role="status" aria-live="polite"></p>
+
+  <div id="panel" hidden>
+    <div class="top">
+      <div class="stats">
+        <div class="stat"><b id="s-total">0</b>lượt quay</div>
+        <div class="stat"><b id="s-given">0</b>đã trao</div>
+        <div class="stat"><b id="s-wish">0</b>lời chúc chờ duyệt</div>
+        <div class="stat"><b id="s-req">0</b>yêu cầu thêm lượt</div>
+        <div class="stat"><b id="s-going">0</b>người sẽ đến</div>
+      </div>
+      <div>
+        <button class="btn ghost" type="button" id="refresh">Tải lại</button>
+        <button class="btn ghost" type="button" id="out">Thoát</button>
+      </div>
+    </div>
+
+    <h2>Thông báo từ chủ trang</h2>
+    <div class="tools">
+      <input id="ann" type="text" class="grow" maxlength="300" placeholder="Nội dung hiện ở đầu trang người chơi (để trống rồi bấm Đăng để gỡ)" aria-label="Thông báo">
+      <button class="btn" type="button" id="ann-send">Đăng</button>
+    </div>
+    <p class="msg" id="ann-msg" role="status" aria-live="polite"></p>
+
+    <h2>Xác nhận tham dự</h2>
+    <div class="stats small">
+      <div class="stat"><b id="r-yes">0</b>người chắc chắn đến</div>
+      <div class="stat"><b id="r-maybe">0</b>người có thể đến</div>
+      <div class="stat"><b id="r-no">0</b>thiệp không đến được</div>
+    </div>
+    <div class="tools">
+      <select id="rsvp-filter" aria-label="Lọc xác nhận">
+        <option value="all">Tất cả</option><option value="yes">Chắc chắn đến</option>
+        <option value="maybe">Có thể đến</option><option value="no">Không đến được</option>
+      </select>
+      <button class="btn ghost" type="button" id="csv-rsvp">Tải CSV</button>
+    </div>
+    <ul class="rows" id="rsvps"></ul>
+
+    <h2>Yêu cầu cấp thêm lượt</h2>
+    <div class="tools"><label class="chk"><input type="checkbox" id="only-req" checked> Chỉ chưa xử lý</label></div>
+    <ul class="rows" id="reqs"></ul>
+
+    <h2>Người trúng thưởng</h2>
+    <div class="tools">
+      <input id="q" type="text" placeholder="Tìm theo ID, tên hoặc vật phẩm" aria-label="Tìm">
+      <label class="chk"><input type="checkbox" id="only-open"> Chỉ chưa trao</label>
+      <button class="btn ghost" type="button" id="csv-spins">Tải CSV</button>
+    </div>
+    <ul class="rows" id="spins"></ul>
+
+    <h2>Lời chúc</h2>
+    <div class="tools"><label class="chk"><input type="checkbox" id="only-wait"> Chỉ chưa duyệt</label></div>
+    <ul class="rows" id="wishes"></ul>
+    <p class="msg" id="msg2" role="status" aria-live="polite"></p>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var SHEET_URL = 'https://script.google.com/macros/s/AKfycbyQlMvlxL35RJGQIVX3_I97QS67b0iEvic2TxsOcAhoicGjnn7EuUhVlQcOs_hS6I3_VA/exec';
+  var pw = '', data = { spins: [], wishes: [], requests: [], rsvps: [] };
+  function $(id) { return document.getElementById(id); }
+
+  function call(payload) {
+    payload.pw = pw;
+    return fetch(SHEET_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(payload) })
+      .then(function (r) { if (!r.ok) throw new Error('http' + r.status); return r.json(); });
+  }
+  var ERR = { denied: 'Sai mật khẩu.', locked: 'Nhập sai quá nhiều lần. Thử lại sau 10 phút.', off: 'Trang quản trị đang tắt (chưa đặt ADMIN_PASSWORD trong script).',
+    row: 'Dòng không hợp lệ. Hãy bấm Tải lại.', stale: 'Sheet đã thay đổi. Hãy bấm Tải lại rồi thử lại.',
+    done: 'Yêu cầu này đã được xử lý. Hãy bấm Tải lại.', num: 'Số lượt không hợp lệ.' };
+  function errText(d) { return (d && ERR[d.error]) || ('Lỗi: ' + ((d && d.error) || 'không rõ')); }
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  function toggleBtn(on, labelOn, labelOff, onClick) {
+    var b = el('button', 'btn' + (on ? ' on' : ' ghost'), on ? labelOn : labelOff);
+    b.type = 'button';
+    b.addEventListener('click', function () {
+      b.disabled = true;
+      onClick(!on, function () { b.disabled = false; });
+    });
+    return b;
+  }
+
+  function mark(action, item, value, done) {
+    $('msg2').textContent = '';
+    call({ action: action, row: item.row, id: item.id, value: value }).then(function (d) {
+      if (!d || !d.ok) { $('msg2').textContent = errText(d); return; }
+      if (action === 'admin_give') item.given = value; else item.approved = value;
+      render();
+    }).catch(function () { $('msg2').textContent = 'Không kết nối được máy chủ.'; }).then(done);
+  }
+
+  function decide(action, item, value, done) {
+    $('msg2').textContent = '';
+    call({ action: action, row: item.row, id: item.id, value: value }).then(function (d) {
+      if (!d || !d.ok) { $('msg2').textContent = errText(d); if (d && d.error === 'done') load(); return; }
+      if (action === 'admin_grant') { item.status = 'ok'; item.grant = value; } else { item.status = 'no'; item.grant = 0; }
+      render();
+    }).catch(function () { $('msg2').textContent = 'Không kết nối được máy chủ.'; }).then(done);
+  }
+
+  var RSVP_TXT = { yes: 'Chắc chắn đến', maybe: 'Có thể đến', no: 'Không đến được' };
+
+  function renderRsvp() {
+    var list = data.rsvps || [], f = $('rsvp-filter').value, ul = $('rsvps'), yes = 0, maybe = 0, no = 0, shown = 0;
+    ul.textContent = '';
+    list.forEach(function (r) {
+      var n = 1 + (r.plus || 0);
+      if (r.status === 'yes') yes += n; else if (r.status === 'maybe') maybe += n; else if (r.status === 'no') no++;
+    });
+    $('r-yes').textContent = yes; $('r-maybe').textContent = maybe; $('r-no').textContent = no; $('s-going').textContent = yes;
+    list.forEach(function (r) {
+      if (f !== 'all' && r.status !== f) return;
+      shown++;
+      var li = el('li'), info = el('div', 'info');
+      var t = el('div', 't'); t.appendChild(document.createTextNode(r.name + (r.plus ? ' +' + r.plus + ' người' : '')));
+      info.appendChild(t);
+      if (r.note) info.appendChild(el('div', 't reason', r.note));
+      info.appendChild(el('div', 'm', 'ID ' + r.id + ' · ' + r.time));
+      li.appendChild(info);
+      li.appendChild(el('span', 'badge ' + (r.status === 'yes' ? 'ok' : r.status), RSVP_TXT[r.status] || r.status));
+      ul.appendChild(li);
+    });
+    if (!shown) ul.appendChild(el('li', 'empty', 'Chưa có xác nhận nào.'));
+  }
+
+  // CSV mở được bằng Excel (có BOM). Ô bắt đầu bằng = + - @ được chặn để không bị hiểu thành công thức.
+  function csvCell(v) {
+    var t = String(v == null ? '' : v);
+    if (/^[=+\-@]/.test(t)) t = "'" + t;
+    return '"' + t.replace(/"/g, '""') + '"';
+  }
+  function downloadCsv(name, header, rows) {
+    var lines = [header.map(csvCell).join(',')].concat(rows.map(function (r) { return r.map(csvCell).join(','); }));
+    var blob = new Blob(['\ufeff' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob), a = document.createElement('a');
+    a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+
+  function render() {
+    renderRsvp();
+    var reqs = $('reqs'), reqOnly = $('only-req').checked, pendingReq = 0, shownReq = 0;
+    reqs.textContent = '';
+    (data.requests || []).forEach(function (r) { if (r.status === 'wait') pendingReq++; });
+    $('s-req').textContent = pendingReq;
+    (data.requests || []).forEach(function (r) {
+      if (reqOnly && r.status !== 'wait') return;
+      shownReq++;
+      var li = el('li', 'req'), info = el('div', 'info');
+      info.appendChild(el('div', 't reason', r.text));
+      info.appendChild(el('div', 'm', r.name + ' · ID ' + r.id + ' · ' + r.time + ' · đã quay ' + r.used + ' lượt'));
+      li.appendChild(info);
+      var acts = el('div', 'acts');
+      if (r.status === 'wait') {
+        var qty = el('input', 'qty'); qty.type = 'number'; qty.min = 1; qty.max = data.maxGrant || 50; qty.value = 1; qty.step = 1;
+        qty.setAttribute('aria-label', 'Số lượt cấp');
+        var ok = el('button', 'btn', 'Duyệt'), no = el('button', 'btn ghost', 'Từ chối');
+        ok.type = 'button'; no.type = 'button';
+        function lock(v) { ok.disabled = v; no.disabled = v; qty.disabled = v; }
+        ok.addEventListener('click', function () {
+          var n = Math.floor(Number(qty.value));
+          if (!(n >= 1 && n <= (data.maxGrant || 50))) { $('msg2').textContent = 'Nhập số lượt từ 1 đến ' + (data.maxGrant || 50) + '.'; qty.focus(); return; }
+          lock(true); decide('admin_grant', r, n, function () { lock(false); });
+        });
+        no.addEventListener('click', function () { lock(true); decide('admin_deny', r, 0, function () { lock(false); }); });
+        acts.appendChild(qty); acts.appendChild(el('span', 'm', 'lượt')); acts.appendChild(ok); acts.appendChild(no);
+      } else if (r.status === 'ok') {
+        acts.appendChild(el('span', 'badge ok', 'Đã cấp ' + r.grant + ' lượt'));
+      } else {
+        acts.appendChild(el('span', 'badge', 'Đã từ chối'));
+      }
+      li.appendChild(acts);
+      reqs.appendChild(li);
+    });
+    if (!shownReq) reqs.appendChild(el('li', 'empty', 'Không có yêu cầu nào.'));
+
+    var q = $('q').value.trim().toLowerCase(), openOnly = $('only-open').checked, waitOnly = $('only-wait').checked;
+    var spins = $('spins'), wishes = $('wishes'), given = 0, waiting = 0, shown;
+    spins.textContent = ''; wishes.textContent = '';
+
+    data.spins.forEach(function (s) { if (s.given) given++; });
+    data.wishes.forEach(function (w) { if (!w.approved) waiting++; });
+    $('s-total').textContent = data.total != null ? data.total : data.spins.length;
+    $('s-given').textContent = given; $('s-wish').textContent = waiting;
+
+    shown = 0;
+    data.spins.forEach(function (s) {
+      if (openOnly && s.given) return;
+      if (q && (s.id + ' ' + s.name + ' ' + s.item).toLowerCase().indexOf(q) < 0) return;
+      shown++;
+      var li = el('li'), info = el('div', 'info');
+      var t = el('div', 't'); t.appendChild(el('span', 'prize', s.item)); t.appendChild(document.createTextNode(' · ' + s.name));
+      info.appendChild(t); info.appendChild(el('div', 'm', 'ID ' + s.id + ' · ' + s.time));
+      li.appendChild(info);
+      li.appendChild(toggleBtn(s.given, 'Đã trao', 'Đánh dấu đã trao', function (v, done) { mark('admin_give', s, v, done); }));
+      spins.appendChild(li);
+    });
+    if (!shown) spins.appendChild(el('li', 'empty', 'Không có dòng nào.'));
+
+    shown = 0;
+    data.wishes.forEach(function (w) {
+      if (waitOnly && w.approved) return;
+      shown++;
+      var li = el('li'), info = el('div', 'info');
+      info.appendChild(el('div', 't', w.text));
+      info.appendChild(el('div', 'm', w.name + ' · ID ' + w.id + ' · ' + w.time));
+      li.appendChild(info);
+      li.appendChild(toggleBtn(w.approved, 'Đã duyệt', 'Duyệt', function (v, done) { mark('admin_approve', w, v, done); }));
+      wishes.appendChild(li);
+    });
+    if (!shown) wishes.appendChild(el('li', 'empty', 'Không có lời chúc nào.'));
+  }
+
+  function load() {
+    $('msg').textContent = 'Đang tải...';
+    return call({ action: 'admin_list' }).then(function (d) {
+      if (!d || !d.ok) { $('msg').textContent = errText(d); return false; }
+      data = d; $('msg').textContent = ''; $('ann').value = d.announce || '';
+      $('login').hidden = true; $('panel').hidden = false;
+      render();
+      return true;
+    }).catch(function () { $('msg').textContent = 'Không kết nối được máy chủ.'; return false; });
+  }
+
+  $('login').addEventListener('submit', function (e) {
+    e.preventDefault();
+    pw = $('pw').value;
+    $('go').disabled = true;
+    load().then(function (ok) { $('go').disabled = false; if (!ok) pw = ''; $('pw').value = ''; });
+  });
+  $('refresh').addEventListener('click', load);
+  $('out').addEventListener('click', function () { pw = ''; data = { spins: [], wishes: [], requests: [], rsvps: [] }; $('panel').hidden = true; $('login').hidden = false; $('msg').textContent = ''; $('pw').focus(); });
+  $('q').addEventListener('input', render);
+  $('only-open').addEventListener('change', render);
+  $('only-wait').addEventListener('change', render);
+  $('only-req').addEventListener('change', render);
+  $('rsvp-filter').addEventListener('change', renderRsvp);
+
+  $('ann-send').addEventListener('click', function () {
+    var b = $('ann-send'), text = $('ann').value.replace(/\s+/g, ' ').trim();
+    b.disabled = true; $('ann-msg').textContent = 'Đang lưu...';
+    call({ action: 'admin_announce', text: text }).then(function (d) {
+      $('ann-msg').textContent = (!d || !d.ok) ? errText(d) : (d.text ? 'Đã đăng. Người chơi sẽ thấy ở đầu trang.' : 'Đã gỡ thông báo.');
+      if (d && d.ok) { data.announce = d.text; $('ann').value = d.text; }
+    }).catch(function () { $('ann-msg').textContent = 'Không kết nối được máy chủ.'; }).then(function () { b.disabled = false; });
+  });
+  $('csv-rsvp').addEventListener('click', function () {
+    downloadCsv('xac-nhan-tham-du.csv', ['Thời gian', 'ID', 'Tên', 'Trạng thái', 'Đi cùng', 'Lời nhắn'],
+      (data.rsvps || []).map(function (r) { return [r.time, r.id, r.name, RSVP_TXT[r.status] || r.status, r.plus, r.note]; }));
+  });
+  $('csv-spins').addEventListener('click', function () {
+    downloadCsv('nguoi-trung-thuong.csv', ['Thời gian', 'ID', 'Tên', 'Vật phẩm', 'Đã trao'],
+      (data.spins || []).map(function (r) { return [r.time, r.id, r.name, r.item, r.given ? 'x' : '']; }));
+  });
+})();
+</script>
+</body>
+</html>

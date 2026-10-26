@@ -1,0 +1,2680 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0508">
+<title>Thiên Yết Antares</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600&family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500&display=swap">
+<style>
+  /* Layout: a full-screen gate (ID, tên, TREM) opens onto a long scroll about the sign,
+     with the 10-slot wheel living in an overlay panel. One spin per player, remembered on the device.
+     Single dark look by design: oxblood and soot, one hot red (Antares) for action, gold only for fine lines. */
+  :root {
+    --void: #0b0508;
+    --wine: #240812;
+    --garnet: #7d1230;
+    --antares: #f0405a;
+    --bone: #efdcd2;
+    --ash: #ab9298;
+    --gold: #c9a15c;
+    --line: rgba(239, 220, 210, 0.14);
+    --f-display: 'Cormorant Garamond', 'Times New Roman', serif;
+    --f-body: 'Be Vietnam Pro', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    --gutter: 16px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html {
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
+    padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html, body { background-color: var(--void); }
+  body {
+    margin: 0;
+    font-family: var(--f-body);
+    font-size: 16px;
+    line-height: 1.65;
+    font-weight: 300;
+    color: var(--bone);
+    background-image:
+      radial-gradient(60rem 40rem at 85% -10%, rgba(125, 18, 48, 0.35), transparent 70%),
+      radial-gradient(50rem 40rem at -10% 60%, rgba(36, 8, 18, 0.9), transparent 70%);
+    background-attachment: fixed;
+    overflow-x: hidden;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-text-size-adjust: 100%;
+  }
+  input, textarea { -webkit-user-select: text; user-select: text; }
+  img, svg, canvas { -webkit-user-drag: none; }
+  h1, h2, h3 { font-family: var(--f-display); font-weight: 700; margin: 0; text-wrap: balance; }
+  p { margin: 0; }
+  button, input { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--antares); outline-offset: 3px; }
+
+  #sky { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+
+  .eyebrow {
+    font-size: 0.75rem; font-weight: 500; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold);
+  }
+
+  /* ---------- Gate ---------- */
+  .gate {
+    position: fixed; inset: 0; z-index: 20;
+    display: grid; place-items: center;
+    padding: max(24px, env(safe-area-inset-top, 0px)) var(--gutter) max(24px, env(safe-area-inset-bottom, 0px));
+    background-color: var(--void);
+    background-image: radial-gradient(40rem 32rem at 50% 45%, rgba(125, 18, 48, 0.4), transparent 70%);
+    overflow: auto;
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+  .gate.leaving { opacity: 0; transform: scale(1.04); pointer-events: none; }
+  .gate-sky { position: absolute; inset: 0; opacity: 0.32; pointer-events: none; }
+  .gate-sky svg { width: 100%; height: 100%; }
+  .gate-card {
+    position: relative; z-index: 1;
+    width: min(100%, 400px);
+    display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center;
+  }
+  .glyph { width: 64px; height: 52px; color: var(--antares); }
+  .gate-title {
+    font-size: clamp(2.8rem, 13vw, 5.6rem); line-height: 0.95; letter-spacing: 0.06em; text-transform: uppercase;
+    color: var(--bone);
+  }
+  .gate-sub { color: var(--ash); font-size: 0.9rem; }
+  .fields { width: 100%; display: flex; flex-direction: column; gap: 18px; margin-top: 14px; text-align: left; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .field label { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ash); font-weight: 500; }
+  .field input {
+    width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--line);
+    padding: 10px 2px; font-size: 1.05rem; color: var(--bone); border-radius: 0;
+    transition: border-color 0.2s;
+  }
+  .field input::placeholder { color: rgba(171, 146, 152, 0.55); }
+  .field input:focus { outline: none; border-bottom-color: var(--antares); }
+  .gate-msg { min-height: 1.4em; font-size: 0.85rem; color: var(--antares); }
+  .gate-hint { min-height: 1.4em; font-size: 0.85rem; color: var(--gold); overflow-wrap: anywhere; }
+  .gate-hint:empty { display: none; }
+  .field input[readonly] { color: var(--gold); border-bottom-style: dashed; }
+  .trem {
+    position: relative; cursor: pointer;
+    min-width: 220px; padding: 20px 48px;
+    font-family: var(--f-display); font-weight: 700; font-size: 1.7rem; letter-spacing: 0.4em; padding-left: calc(48px + 0.4em);
+    color: var(--bone);
+    background: radial-gradient(circle at 50% 0%, var(--garnet), var(--wine) 80%);
+    border: 1px solid var(--gold);
+    border-radius: 2px 30px 2px 30px;
+    box-shadow: 0 0 0 0 rgba(240, 64, 90, 0.5), 0 12px 40px rgba(125, 18, 48, 0.55);
+    transition: transform 0.2s, box-shadow 0.3s, background 0.3s;
+    animation: venom 2.8s ease-in-out infinite;
+  }
+  .trem:hover { transform: translateY(-2px); background: radial-gradient(circle at 50% 0%, #a3173d, var(--wine) 85%); }
+  .trem:active { transform: translateY(1px); }
+  /* ---- Face scan login ---- */
+  .face-btn { display:inline-flex; align-items:center; justify-content:center; gap:.5em; width:100%; padding:12px 18px; border:1px solid rgba(201,161,92,.7); border-radius:999px; background:rgba(201,161,92,.08); color:var(--gold); font:inherit; letter-spacing:.08em; cursor:pointer; transition:background .2s, transform .2s; }
+  .face-btn:hover { background:rgba(201,161,92,.18); transform:translateY(-1px); }
+  .gate-card .fields, .gate-card .trem, .gate-card .gate-hint { display:none !important; }
+  .face-btn { padding:18px 24px; font-size:1.15rem; background:radial-gradient(circle at 50% 0%, #a3173d, var(--wine) 85%); color:#fff; border-color:rgba(201,161,92,.8); }
+  .face-btn:hover { background:radial-gradient(circle at 50% 0%, #b8194a, #9a1535 85%); }
+  .face-or { text-align:center; font-size:.75rem; letter-spacing:.2em; color:rgba(171,146,152,.8); margin:2px 0; }
+  .face-overlay { position:fixed; inset:0; z-index:9999; display:none; align-items:center; justify-content:center; flex-direction:column; gap:14px; background:rgba(8,2,5,.94); padding:16px; text-align:center; color:#f3e7ea; }
+  .face-overlay.on { display:flex; }
+  .face-frame { position:relative; width:min(78vw,340px); aspect-ratio:1/1; border-radius:50%; overflow:hidden; border:2px solid var(--gold); box-shadow:0 0 60px rgba(201,161,92,.25); background:#000; }
+  .face-frame video { width:100%; height:100%; object-fit:cover; transform:scaleX(-1); }
+  .face-frame.scan::after { content:""; position:absolute; left:0; right:0; height:3px; background:linear-gradient(90deg,transparent,var(--antares),transparent); animation:faceSweep 1.8s ease-in-out infinite; }
+  @keyframes faceSweep { 0%{top:6%} 50%{top:92%} 100%{top:6%} }
+  .face-status { min-height:2.6em; max-width:320px; font-size:.95rem; }
+  .face-actions { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; }
+  .face-actions button { padding:10px 20px; border-radius:999px; border:1px solid rgba(201,161,92,.7); background:transparent; color:var(--gold); font:inherit; cursor:pointer; }
+  .face-actions button.primary { background:var(--wine); color:#fff; border-color:var(--wine); }
+  .face-note { font-size:.72rem; color:rgba(171,146,152,.85); max-width:320px; }
+  @media (prefers-reduced-motion: reduce) { .face-frame.scan::after { animation:none; } }
+
+  @keyframes venom {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(240, 64, 90, 0.45), 0 12px 40px rgba(125, 18, 48, 0.55); }
+    50% { box-shadow: 0 0 0 14px rgba(240, 64, 90, 0), 0 12px 40px rgba(125, 18, 48, 0.55); }
+  }
+
+  /* ---------- App ---------- */
+  .app { position: relative; z-index: 1; }
+  .bar {
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 10px var(--gutter);
+    background: rgba(11, 5, 8, 0.78); backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .brand svg { width: 30px; height: 24px; color: var(--antares); flex: none; }
+  .brand span { font-family: var(--f-display); font-weight: 700; font-size: 1.3rem; letter-spacing: 0.1em; text-transform: uppercase; white-space: nowrap; }
+  .bar-right { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  .who { font-size: 0.8rem; color: var(--ash); max-width: 28ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; padding: 9px 20px; cursor: pointer; text-decoration: none;
+    font-size: 0.82rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--bone); background: var(--garnet);
+    border: 1px solid rgba(201, 161, 92, 0.6); border-radius: 2px 14px 2px 14px;
+    transition: background 0.2s, transform 0.2s;
+  }
+  .btn:hover { background: #9c1739; transform: translateY(-1px); }
+  .btn.ghost { background: transparent; border-color: var(--line); }
+  .btn.ghost:hover { background: rgba(239, 220, 210, 0.07); }
+  .btn.big { padding: 16px 40px; font-size: 1rem; }
+
+  .wrap { width: min(100%, 1060px); margin-inline: auto; padding-inline: var(--gutter); }
+  section { padding-block: clamp(40px, 8vw, 88px); }
+
+  .hero { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: clamp(24px, 5vw, 64px); align-items: center; }
+  .hero > * { min-width: 0; }
+  .hero h1 { font-size: clamp(2.4rem, 7vw, 5rem); line-height: 1; margin-block: 14px 22px; }
+  .hero h1 em { font-style: italic; font-weight: 500; color: var(--antares); }
+  .hero p { max-width: 52ch; color: #d9c4ba; }
+  .hero .fact { margin-top: 22px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 0.9rem; color: var(--ash); max-width: 52ch; }
+  .hero-sky { width: 100%; max-width: 420px; justify-self: center; aspect-ratio: 4 / 5; }
+  .hero-sky svg { width: 100%; height: 100%; overflow: visible; }
+
+  .sec-head { display: flex; flex-direction: column; gap: 8px; margin-bottom: 32px; }
+  .sec-head h2 { font-size: clamp(1.9rem, 4.5vw, 3rem); line-height: 1.05; }
+
+  dl.profile { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 0 40px; margin: 0; }
+  dl.profile > div { padding: 14px 0; border-top: 1px solid var(--line); min-width: 0; }
+  dl.profile dt { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); font-weight: 500; }
+  dl.profile dd { margin: 4px 0 0; font-family: var(--f-display); font-size: 1.35rem; font-weight: 500; line-height: 1.3; }
+
+  .traits { display: flex; flex-direction: column; }
+  .trait { display: grid; grid-template-columns: minmax(130px, 0.35fr) 1fr; gap: 8px 32px; padding: 18px 0; border-top: 1px solid var(--line); align-items: baseline; }
+  .trait:last-child { border-bottom: 1px solid var(--line); }
+  .trait h3 { font-size: 1.6rem; font-weight: 500; font-style: italic; }
+  .trait p { color: #d9c4ba; max-width: 60ch; }
+  .trait.warn h3 { color: var(--antares); }
+  .match { margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 16px 40px; font-size: 0.95rem; }
+  .match b { display: block; font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); font-weight: 500; margin-bottom: 4px; }
+  .note { font-size: 0.78rem; color: var(--ash); }
+
+  .cta {
+    text-align: center; display: flex; flex-direction: column; align-items: center; gap: 18px;
+    border-top: 1px solid var(--line);
+  }
+  .cta h2 { font-size: clamp(2rem, 5vw, 3.4rem); }
+  .cta p { max-width: 46ch; color: #d9c4ba; }
+  footer { padding: 24px var(--gutter) 40px; text-align: center; font-size: 0.78rem; color: var(--ash); }
+
+  /* ---------- Wheel panel ---------- */
+  .panel {
+    position: fixed; inset: 0; z-index: 30; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    background: rgba(11, 5, 8, 0.94); backdrop-filter: blur(6px);
+    padding: max(16px, env(safe-area-inset-top, 0px)) var(--gutter) max(24px, env(safe-area-inset-bottom, 0px));
+  }
+  .panel-inner { width: min(100%, 1040px); margin-inline: auto; }
+  .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 8px 20px; }
+  .panel-head h2 { font-size: clamp(1.5rem, 4vw, 2.4rem); }
+  .panel-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr); gap: clamp(24px, 4vw, 56px); align-items: start; }
+  .wheel { position: relative; width: min(100%, 460px); aspect-ratio: 1; margin: 34px auto 0; touch-action: manipulation; }
+  .wheel canvas { width: 100%; height: 100%; display: block; }
+  .pointer {
+    position: absolute; left: 50%; top: -22px; transform: translateX(-50%); z-index: 3;
+    border-left: 14px solid transparent; border-right: 14px solid transparent; border-top: 34px solid var(--antares);
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.6));
+  }
+  .spin {
+    position: absolute; left: 50%; top: 50%; width: 22%; min-width: 64px; aspect-ratio: 1; transform: translate(-50%, -50%); z-index: 2;
+    border-radius: 50%; cursor: pointer;
+    font-family: var(--f-display); font-weight: 700; font-size: clamp(0.9rem, 3.2vw, 1.25rem); letter-spacing: 0.12em;
+    color: var(--bone); background: radial-gradient(circle at 35% 30%, #c01f45, var(--garnet) 60%, var(--wine));
+    border: 2px solid var(--gold);
+    box-shadow: 0 0 24px rgba(240, 64, 90, 0.45);
+    transition: transform 0.2s, opacity 0.2s;
+  }
+  .spin:hover:not(:disabled) { transform: translate(-50%, -50%) scale(1.06); }
+  .spin:disabled { opacity: 0.6; cursor: default; box-shadow: none; }
+
+  .side { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+  .result { padding: 18px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); min-height: 6.5rem; }
+  .result .lbl { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); font-weight: 500; }
+  .result .val { font-family: var(--f-display); font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 700; line-height: 1.1; margin-top: 6px; color: var(--antares); overflow-wrap: anywhere; }
+  .result .hint { margin-top: 6px; color: var(--ash); font-size: 0.9rem; }
+  .player { display: flex; flex-direction: column; gap: 6px; }
+  .player label { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ash); font-weight: 500; }
+  .player input {
+    width: 100%; min-width: 0; background: rgba(239, 220, 210, 0.05); border: 1px solid var(--line);
+    border-radius: 2px; padding: 10px 12px; font-size: 1rem; color: var(--bone);
+  }
+  .slots { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  .slots li { font-size: 0.78rem; padding: 3px 10px; border: 1px solid var(--line); border-radius: 2px 10px 2px 10px; color: #d9c4ba; }
+  .panel-label { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ash); font-weight: 500; margin-bottom: 8px; }
+
+  .panel-head { flex-wrap: wrap; }
+  .head-actions { display: flex; align-items: center; gap: 8px; }
+  .head-actions .btn { padding-inline: 14px; font-size: 0.74rem; letter-spacing: 0.08em; }
+  .result .actions { margin-top: 14px; }
+  .result .val { animation: pop 0.6s ease-out; }
+  @keyframes pop { 0% { transform: scale(0.85); opacity: 0; } 60% { transform: scale(1.05); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
+  #fx { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 50; pointer-events: none; }
+
+  @media (max-width: 760px) {
+    .hero { grid-template-columns: 1fr; }
+    .hero-sky { max-width: 300px; }
+    .panel-grid { grid-template-columns: 1fr; }
+    .trait { grid-template-columns: 1fr; gap: 2px; }
+    .who { display: none; }
+    .trem { min-width: 0; width: 100%; }
+  }
+  @media (max-width: 480px) {
+    body { font-size: 16px; }
+    .gate-card { gap: 14px; }
+    .gate-sub { font-size: 0.95rem; }
+    .eyebrow { font-size: 0.8rem; }
+    .field label { font-size: 0.75rem; }
+    .field input { font-size: 1.1rem; padding-block: 12px; }
+    .trem { padding: 20px 24px; padding-left: calc(24px + 0.4em); font-size: 1.65rem; }
+    .brand span { font-size: 1.1rem; letter-spacing: 0.08em; }
+    .brand svg { width: 26px; height: 21px; }
+    .btn { padding-inline: 16px; }
+    .bar { gap: 8px; }
+    .bar-right { gap: 8px; }
+    .bar .btn { padding-inline: 12px; font-size: 0.74rem; letter-spacing: 0.08em; }
+    .btn.big { width: 100%; padding-inline: 16px; }
+    section { padding-block: 36px; }
+    .sec-head { margin-bottom: 22px; }
+    .hero h1 { margin-block: 10px 16px; }
+    .hero-sky { max-width: 260px; }
+    dl.profile dd { font-size: 1.2rem; }
+    .trait { padding: 14px 0; }
+    .trait h3 { font-size: 1.4rem; }
+    .panel-head { padding-block: 4px 12px; }
+    .wheel { margin-top: 40px; }
+    .spin { width: 24%; }
+    .result { min-height: 5.5rem; }
+  }
+  @media (max-height: 560px) and (orientation: landscape) {
+    .gate { place-items: start center; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .trem { animation: none; }
+    .result .val { animation: none; }
+    .gate { transition: opacity 0.2s; }
+    .gate.leaving { transform: none; }
+  }
+
+  /* ---------- Sinh nhật: đếm ngược, bánh kem, lời chúc ---------- */
+  .bday { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; padding-block: 8px; }
+  .bday h2 { font-size: clamp(1.7rem, 4.5vw, 2.8rem); line-height: 1.1; }
+  .bday .big-n { color: var(--antares); }
+  .cake-ov { position: fixed; inset: 0; z-index: 40; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    display: flex; padding: 20px var(--gutter); background: rgba(11, 5, 8, 0.95); }
+  .cake-box { margin: auto; width: min(100%, 420px); display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+  .cake-box h2 { font-size: clamp(1.7rem, 6vw, 2.4rem); line-height: 1.1; }
+  .cake-svg { width: min(100%, 340px); height: auto; overflow: visible; }
+  .candle { cursor: pointer; }
+  .candle .flame { transform-box: fill-box; transform-origin: 50% 100%; animation: flick 0.9s ease-in-out infinite alternate; transition: opacity 0.25s; }
+  .candle.out .flame { opacity: 0; animation: none; }
+  .candle:focus-visible { outline: none; }
+  .candle:focus-visible .hit { stroke: var(--antares); stroke-width: 2; }
+  @keyframes flick { from { transform: scale(1, 1) rotate(-3deg); } to { transform: scale(0.9, 1.12) rotate(3deg); } }
+  .cake-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .cake-msg { min-height: 1.5em; color: var(--ash); font-size: 0.9rem; }
+  .wish-form { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
+  .wish-form textarea { width: 100%; min-height: 96px; resize: vertical; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--line); background: rgba(239, 220, 210, 0.05); color: var(--bone); font-size: 1rem; line-height: 1.5; }
+  .wish-form textarea:focus { outline: none; border-color: var(--antares); }
+  .wish-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .wish-msg { color: var(--gold); font-size: 0.9rem; min-height: 1.4em; }
+  .wall { list-style: none; margin: 22px 0 0; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  .wall li { padding: 14px 16px; border: 1px solid var(--line); border-radius: 12px; background: rgba(36, 8, 18, 0.6); }
+  .wall .w-text { overflow-wrap: anywhere; color: var(--bone); }
+  .wall .w-name { margin-top: 8px; font-size: 0.8rem; color: var(--gold); overflow-wrap: anywhere; }
+  .sec-head.row { flex-direction: row; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 14px; }
+  .invite-cv { width: min(100%, 360px); height: auto; border-radius: 10px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6); }
+  /* Xin thêm lượt quay + thông báo được cấp lượt */
+  .extra { display: flex; flex-direction: column; gap: 10px; }
+  .extra textarea { width: 100%; min-height: 84px; resize: vertical; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--line); background: rgba(239, 220, 210, 0.05); color: var(--bone); font-size: 1rem; line-height: 1.5; }
+  .extra textarea:focus { outline: none; border-color: var(--antares); }
+  .extra-form { display: flex; flex-direction: column; gap: 10px; }
+  .extra-form .wish-row { flex-wrap: wrap; }
+  .extra-wait { margin: 0; padding: 12px 14px; border: 1px dashed rgba(201, 161, 92, 0.5); border-radius: 10px; color: var(--gold); font-size: 0.9rem; }
+  .extra-msg { margin: 0; color: var(--gold); font-size: 0.9rem; min-height: 1.2em; }
+  .announce { display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 12px 16px; margin-bottom: 22px;
+    border: 1px solid rgba(201, 161, 92, 0.5); border-radius: 12px; background: rgba(125, 18, 48, 0.28); }
+  .announce p { margin: 0; overflow-wrap: anywhere; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .chip { min-height: 40px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent;
+    color: var(--bone); cursor: pointer; font: inherit; font-size: 0.85rem; }
+  .chip[aria-checked="true"] { border-color: var(--antares); background: rgba(240, 64, 90, 0.2); }
+  .chip:disabled { opacity: 0.4; cursor: default; }
+  .chip.step { width: 40px; padding: 0; font-size: 1.2rem; }
+  .invite-box { width: min(100%, 460px); }
+  .rsvp { width: 100%; display: flex; flex-direction: column; gap: 12px; text-align: left; padding: 16px;
+    border: 1px solid var(--line); border-radius: 12px; background: rgba(36, 8, 18, 0.6); }
+  .rsvp .chips { justify-content: flex-start; }
+  .rsvp textarea { width: 100%; min-height: 72px; resize: vertical; padding: 12px 14px; border-radius: 10px;
+    border: 1px solid var(--line); background: rgba(239, 220, 210, 0.05); color: var(--bone); font: inherit; line-height: 1.5; }
+  .rsvp textarea:focus { outline: none; border-color: var(--antares); }
+  .stepper { display: flex; align-items: center; gap: 12px; }
+  .stepper output { min-width: 2ch; text-align: center; font-size: 1.25rem; font-weight: 600; }
+  .fortune-card { padding: 22px; border: 1px solid var(--line); border-radius: 16px; display: flex; flex-direction: column; gap: 16px;
+    background: linear-gradient(160deg, rgba(125, 18, 48, 0.35), rgba(36, 8, 18, 0.7)); }
+  .f-date { margin: 0; font-size: 0.78rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); }
+  .f-msg { margin: 0; font-family: var(--f-display); font-size: clamp(1.4rem, 5vw, 1.9rem); line-height: 1.25; }
+  .f-row { display: flex; flex-wrap: wrap; gap: 12px; }
+  .f-box { flex: 1 1 140px; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
+  .f-lbl { font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ash); }
+  .f-big { font-family: var(--f-display); font-size: 2.6rem; line-height: 1; color: var(--antares); }
+  .f-sw { display: inline-block; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--bone); }
+  .f-meter { display: grid; grid-template-columns: 96px 1fr 44px; gap: 10px; align-items: center; font-size: 0.85rem; color: var(--ash); }
+  .f-track { height: 8px; border-radius: 999px; background: rgba(239, 220, 210, 0.12); overflow: hidden; }
+  .f-fill { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--garnet), var(--antares)); }
+  .grant-n { margin: 0; font-family: var(--f-display); font-weight: 700; font-size: clamp(3rem, 14vw, 5rem); line-height: 1; color: var(--antares); }
+  @media (prefers-reduced-motion: reduce) { .candle .flame { animation: none; } }
+
+  /* ---------- Hiệu ứng khi lia chuột / chạm vào nút ---------- */
+  .btn, .trem, .spin { -webkit-tap-highlight-color: transparent; }
+  .btn { position: relative; overflow: hidden; isolation: isolate; transition: background 0.25s, transform 0.25s cubic-bezier(.2,.8,.2,1), box-shadow 0.25s, border-color 0.25s, letter-spacing 0.25s; }
+  .btn::before, .trem::before {
+    content: ''; position: absolute; top: 0; bottom: 0; left: -80%; width: 55%; z-index: -1; pointer-events: none;
+    background: linear-gradient(100deg, transparent, rgba(255, 235, 215, 0.38), transparent); transform: skewX(-20deg);
+  }
+  .btn:active:not(:disabled), .trem:active { transform: translateY(1px) scale(0.97); box-shadow: 0 0 0 rgba(0,0,0,0); transition-duration: 0.08s; }
+  .btn:focus-visible { box-shadow: 0 0 0 3px rgba(240, 64, 90, 0.35); }
+  .trem { overflow: hidden; isolation: isolate; }
+  .trem::before { background: linear-gradient(100deg, transparent, rgba(255, 235, 215, 0.3), transparent); }
+  @keyframes shine { from { left: -80%; } to { left: 130%; } }
+  @keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(240, 64, 90, 0.7), 0 0 30px rgba(240, 64, 90, 0.6); } 100% { box-shadow: 0 0 0 22px rgba(240, 64, 90, 0), 0 0 30px rgba(240, 64, 90, 0.6); } }
+  @media (hover: hover) {
+    .btn:hover:not(:disabled) { transform: translateY(-3px); border-color: var(--gold); letter-spacing: 0.18em;
+      box-shadow: 0 8px 22px rgba(240, 64, 90, 0.35), 0 0 0 1px rgba(201, 161, 92, 0.4); }
+    .btn:hover:not(:disabled)::before, .trem:hover::before { animation: shine 0.75s ease; }
+    .btn.ghost:hover:not(:disabled) { background: rgba(240, 64, 90, 0.12); box-shadow: 0 6px 18px rgba(240, 64, 90, 0.2); }
+    .btn:disabled { cursor: not-allowed; }
+    .trem:hover { animation: none; transform: translateY(-3px) scale(1.03); border-color: #f2d28a;
+      box-shadow: 0 0 34px rgba(240, 64, 90, 0.7), 0 16px 44px rgba(125, 18, 48, 0.7); }
+    .spin:hover:not(:disabled) { transform: translate(-50%, -50%) scale(1.1) rotate(-6deg); border-color: #f2d28a; animation: ring 1.1s ease-out infinite; }
+    .candle:hover .hit { fill: rgba(255, 179, 71, 0.14); }
+    .candle:hover .flame { transform: scale(1.25, 1.35); }
+    .wall li { transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s; }
+    .wall li:hover { transform: translateY(-3px); border-color: var(--gold); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.4); }
+    .slots li { transition: background 0.2s, border-color 0.2s, transform 0.2s; }
+    .slots li:hover { background: rgba(240, 64, 90, 0.12); border-color: var(--antares); transform: translateY(-2px); }
+    .trait { transition: background 0.25s, padding-left 0.25s; }
+    .trait:hover { background: rgba(239, 220, 210, 0.04); padding-left: 10px; }
+    dl.profile > div { transition: border-color 0.25s, transform 0.25s; }
+    dl.profile > div:hover { border-top-color: var(--gold); transform: translateX(4px); }
+  }
+  .spin:active:not(:disabled) { transform: translate(-50%, -50%) scale(0.94); }
+  @media (prefers-reduced-motion: reduce) {
+    .btn:hover:not(:disabled), .trem:hover, .spin:hover:not(:disabled), .wall li:hover, .slots li:hover, dl.profile > div:hover { transform: none !important; }
+    .btn::before, .trem::before, .spin { animation: none !important; }
+    .spin:hover:not(:disabled) { transform: translate(-50%, -50%) !important; }
+  }
+
+
+  /* ---------- Antares experience upgrade: motion, navigation and responsive polish ---------- */
+  .scroll-progress {
+    position: fixed; inset: 0 0 auto; height: 3px; z-index: 80;
+    background: rgba(239, 220, 210, .06); pointer-events: none;
+  }
+  .scroll-progress span {
+    display: block; width: 0; height: 100%; transform-origin: left center;
+    background: linear-gradient(90deg, var(--garnet), var(--antares), var(--gold));
+    box-shadow: 0 0 14px rgba(240, 64, 90, .65); transition: width .08s linear;
+  }
+  .hero { position: relative; isolation: isolate; }
+  .hero::before {
+    content: ""; position: absolute; z-index: -1; pointer-events: none;
+    width: min(76vw, 620px); aspect-ratio: 1; right: -18%; top: 50%; transform: translateY(-50%);
+    background: radial-gradient(circle, rgba(125, 18, 48, .2), rgba(125, 18, 48, .06) 42%, transparent 70%);
+    filter: blur(10px);
+  }
+  .hero h1 em { text-shadow: 0 0 28px rgba(240, 64, 90, .25); }
+  .hero-sky { filter: drop-shadow(0 0 22px rgba(125, 18, 48, .14)); animation: antares-drift 8s ease-in-out infinite; }
+  @keyframes antares-drift { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+  .personal-greeting {
+    margin-top: 18px; padding: 12px 16px; max-width: 52ch;
+    color: var(--bone); border-left: 2px solid var(--antares);
+    background: linear-gradient(90deg, rgba(125, 18, 48, .22), transparent);
+    font-family: var(--f-display); font-size: clamp(1.2rem, 2.5vw, 1.55rem); font-style: italic;
+  }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
+  .hero-actions .btn { text-align: center; }
+  .hero-actions a { text-decoration: none; }
+  .bday {
+    position: relative; overflow: hidden; border-block: 1px solid rgba(201, 161, 92, .18);
+    background: radial-gradient(ellipse at 50% 0%, rgba(125, 18, 48, .18), transparent 72%);
+  }
+  .bday::before, .bday::after {
+    content: "✦"; position: absolute; color: var(--gold); opacity: .32; pointer-events: none;
+    font-size: 1.1rem; animation: twinkle 3.4s ease-in-out infinite;
+  }
+  .bday::before { top: 20%; left: 12%; }
+  .bday::after { bottom: 20%; right: 12%; animation-delay: 1.4s; }
+  @keyframes twinkle { 0%, 100% { opacity: .18; transform: scale(.8) rotate(0); } 50% { opacity: .7; transform: scale(1.15) rotate(18deg); } }
+  .btn:focus-visible, .back-to-top:focus-visible { outline-offset: 4px; }
+  .back-to-top {
+    position: fixed; z-index: 15; right: max(18px, env(safe-area-inset-right, 0px));
+    bottom: max(18px, env(safe-area-inset-bottom, 0px)); width: 48px; height: 48px;
+    display: grid; place-items: center; border-radius: 50%; cursor: pointer;
+    border: 1px solid rgba(201, 161, 92, .7); color: var(--bone);
+    background: rgba(36, 8, 18, .92); box-shadow: 0 8px 28px rgba(0, 0, 0, .32);
+    font-size: 1.45rem; opacity: 0; visibility: hidden; transform: translateY(8px);
+    transition: opacity .2s, visibility .2s, transform .2s, background .2s;
+  }
+  .back-to-top.visible { opacity: 1; visibility: visible; transform: translateY(0); }
+  .back-to-top:hover { background: var(--garnet); }
+  .reveal-ready .reveal {
+    opacity: 0; transform: translateY(22px);
+    transition: opacity .65s ease, transform .65s cubic-bezier(.2,.7,.2,1);
+  }
+  .reveal-ready .reveal.is-visible { opacity: 1; transform: translateY(0); }
+  .reveal-ready .reveal:nth-of-type(even) { transition-delay: .04s; }
+  body.calm-mode *, body.calm-mode *::before, body.calm-mode *::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important; transition-duration: .01ms !important;
+  }
+  body.calm-mode .hero-sky { transform: none; }
+  @media (max-width: 600px) {
+    .hero-actions { display: grid; grid-template-columns: 1fr; }
+    .hero-actions .btn { width: 100%; }
+    .hero::before { right: -45%; width: 100vw; }
+    .back-to-top { width: 44px; height: 44px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hero-sky, .bday::before, .bday::after { animation: none !important; }
+    .reveal-ready .reveal, .reveal-ready .reveal.is-visible { opacity: 1; transform: none; transition: none; }
+    .scroll-progress span { transition: none; }
+  }
+
+
+  .personal-wish-banner{display:flex;align-items:center;gap:14px;padding:16px 18px;margin:8px 0 18px;border:1px solid rgba(201,161,92,.28);border-radius:16px;background:linear-gradient(120deg,rgba(201,161,92,.10),rgba(120,40,65,.10))}
+  .personal-wish-icon{font-size:1.8rem;color:var(--gold);flex:0 0 auto}.personal-wish-banner strong{display:block;color:var(--text)}.personal-wish-banner p{margin:4px 0 0;color:var(--muted);font-size:.9rem;line-height:1.5}.personal-wish-banner .btn{margin-left:auto;white-space:nowrap}
+  .my-wish-card{position:relative;overflow:hidden;margin:16px 0;padding:22px;border:1px solid rgba(201,161,92,.4);border-radius:18px;background:radial-gradient(ellipse at top right,rgba(201,161,92,.14),transparent 55%),linear-gradient(145deg,rgba(47,13,27,.92),rgba(14,7,12,.96));box-shadow:0 14px 42px rgba(0,0,0,.18)}
+  .my-wish-card:after{content:'✦';position:absolute;right:18px;bottom:-30px;font-size:7rem;color:rgba(201,161,92,.08);pointer-events:none}.my-wish-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.wish-status{display:inline-flex;padding:6px 11px;border-radius:999px;font-size:.78rem;font-weight:700;letter-spacing:.04em;background:rgba(201,161,92,.13);color:var(--gold);border:1px solid rgba(201,161,92,.25)}.wish-status.approved{background:rgba(73,180,126,.13);color:#8de0b0;border-color:rgba(73,180,126,.35)}.wish-status.pending{background:rgba(201,161,92,.13);color:var(--gold)}.wish-stars{color:var(--gold);letter-spacing:.3em}.my-wish-text{position:relative;z-index:1;font-family:Georgia,serif;font-size:1.25rem;line-height:1.7;color:var(--text);white-space:pre-wrap;overflow-wrap:anywhere;margin:18px 0 12px}.my-wish-meta{position:relative;z-index:1;color:var(--gold);font-size:.88rem;margin:0}.wish-private-empty{padding:20px;border:1px dashed rgba(201,161,92,.25);border-radius:14px;color:var(--muted);text-align:center}
+  @media(max-width:600px){.personal-wish-banner{align-items:flex-start;flex-wrap:wrap}.personal-wish-banner .btn{margin-left:0}.my-wish-card{padding:17px}}
+
+
+
+  /* ---------- Cinematic polish v2: deep-space atmosphere ---------- */
+  :root { --glass: rgba(22, 8, 15, .72); --glass-line: rgba(239,220,210,.12); }
+  body::before {
+    content:""; position:fixed; inset:0; z-index:2; pointer-events:none; opacity:.14;
+    background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.88' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.2'/%3E%3C/svg%3E");
+    mix-blend-mode:soft-light;
+  }
+  body::after {
+    content:""; position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:radial-gradient(ellipse at center,transparent 42%,rgba(3,1,3,.48) 100%);
+  }
+  #sky { z-index:0; }
+  .app, .gate, .scroll-progress, .back-to-top { isolation:isolate; }
+  .app { position:relative; }
+  .app main { position:relative; }
+  .app main > section {
+    scroll-margin-top:24px;
+    position:relative;
+  }
+  .app main > section:not(.hero) {
+    border-radius:clamp(16px,2vw,28px);
+    transition:border-color .45s ease, background-color .45s ease, box-shadow .45s ease;
+  }
+  .app main > section:not(.hero):hover {
+    border-color:rgba(201,161,92,.2);
+  }
+  .panel, .fortune-card, .rsvp, .my-wish-card, .wall li, .invite-cv {
+    backdrop-filter:blur(16px) saturate(115%);
+    -webkit-backdrop-filter:blur(16px) saturate(115%);
+  }
+  .panel {
+    border-color:var(--glass-line);
+    background:linear-gradient(145deg,rgba(38,12,24,.78),rgba(10,5,9,.78));
+    box-shadow:0 22px 70px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.035);
+  }
+  .wall li, .rsvp, .f-box, .my-wish-card, .fortune-card {
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 12px 34px rgba(0,0,0,.12);
+  }
+  .hero h1 { letter-spacing:-.035em; text-shadow:0 8px 40px rgba(0,0,0,.32); }
+  .eyebrow { text-shadow:0 0 20px rgba(201,161,92,.22); }
+  .hero-sky { transform-origin:50% 50%; will-change:transform; }
+  .hero-sky svg { overflow:visible; }
+  .hero-sky svg circle { filter:drop-shadow(0 0 5px rgba(240,64,90,.4)); }
+  .hero-actions .btn, .bar .btn { min-height:46px; }
+  .btn { box-shadow:0 8px 24px rgba(0,0,0,.12); }
+  .btn.primary { box-shadow:0 8px 28px rgba(125,18,48,.24),inset 0 1px 0 rgba(255,255,255,.12); }
+  .personal-wish-banner, .announce { backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); }
+  .my-wish-card { border-color:rgba(201,161,92,.34); }
+  .my-wish-card::before {
+    content:""; position:absolute; inset:0; pointer-events:none; opacity:.5;
+    background:linear-gradient(115deg,transparent 20%,rgba(255,236,212,.055) 48%,transparent 72%);
+    transform:translateX(-100%); animation:cinema-sheen 9s ease-in-out infinite;
+  }
+  @keyframes cinema-sheen { 0%,68%,100% { transform:translateX(-100%); } 82% { transform:translateX(100%); } }
+  .wall li { background:linear-gradient(145deg,rgba(43,13,27,.78),rgba(13,6,11,.78)); }
+  .fortune-card { border-color:rgba(201,161,92,.2); }
+  .scroll-progress { height:2px; }
+  .back-to-top { backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+  .gate-card { box-shadow:0 30px 100px rgba(0,0,0,.26); }
+  input, textarea, select { transition:border-color .22s ease,background .22s ease,box-shadow .22s ease; }
+  input:focus, textarea:focus, select:focus { box-shadow:0 0 0 3px rgba(240,64,90,.1); }
+  ::selection { color:#fff6ed; background:rgba(125,18,48,.85); }
+  @media (pointer:fine) and (hover:hover) {
+    body:not(.calm-mode) .hero-sky { transition:transform .35s ease-out; }
+    .wall li:hover, .my-wish-card:hover, .fortune-card:hover {
+      border-color:rgba(201,161,92,.42);
+      box-shadow:0 18px 46px rgba(0,0,0,.24),0 0 32px rgba(125,18,48,.08);
+    }
+  }
+  @media(max-width:600px) {
+    body::before { opacity:.09; }
+    body::after { background:radial-gradient(ellipse at center,transparent 58%,rgba(3,1,3,.3) 100%); }
+    .panel, .fortune-card, .rsvp, .my-wish-card, .wall li { backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+  }
+  @media(prefers-reduced-motion:reduce) {
+    body::before { display:none; }
+    .my-wish-card::before { animation:none; }
+    .hero-sky { will-change:auto; }
+  }
+  body.calm-mode::before { display:none; }
+
+
+  /* Login screen: clean background (no constellation lines, no grain stripes, no card halo) */
+  .gate-sky { display:none !important; }
+  .gate .gate-card { box-shadow:none !important; background:none !important; backdrop-filter:none !important; -webkit-backdrop-filter:none !important; border:0 !important; }
+  body::before { display:none !important; }
+</style>
+</head>
+<body>
+
+<canvas id="sky" aria-hidden="true"></canvas>
+<canvas id="fx" hidden aria-hidden="true"></canvas>
+<div class="scroll-progress" aria-hidden="true"><span id="scroll-progress-fill"></span></div>
+
+<section class="gate" id="gate" aria-labelledby="gate-title">
+  <div class="gate-sky" id="gate-sky" aria-hidden="true"></div>
+  <form class="gate-card" id="gate-form" novalidate>
+    <svg class="glyph" viewBox="0 0 100 80" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M8 62V26Q8 12 22 12Q36 12 36 26V62M36 26Q36 12 50 12Q64 12 64 26V54Q64 66 78 66H88M80 58L90 66L80 74"/>
+    </svg>
+    <p class="eyebrow">23.10 &ndash; 21.11</p>
+    <h1 class="gate-title" id="gate-title">Thiên Yết</h1>
+    <p class="gate-sub">Quét khuôn mặt để vào đúng tài khoản của bạn.</p>
+    <button class="face-btn" type="button" id="face-btn">&#128247; Quét khuôn mặt để vào</button>
+    <div class="fields">
+      <div class="field">
+        <label for="uid">ID</label>
+        <input id="uid" name="uid" type="text" maxlength="40" autocomplete="off" autocapitalize="off" placeholder="ID game (Free Fire) của bạn" required>
+      </div>
+      <div class="field">
+        <label for="pname">Tên</label>
+        <input id="pname" name="pname" type="text" maxlength="40" autocomplete="off" placeholder="Tên game (Free Fire) của bạn" required>
+      </div>
+    </div>
+    <p class="gate-hint" id="gate-hint" aria-live="polite"></p>
+    <p class="gate-msg" id="gate-msg" role="alert"></p>
+    <button class="trem" type="submit">ấn TREM</button>
+  </form>
+</section>
+
+
+<div class="face-overlay" id="face-overlay" role="dialog" aria-modal="true" aria-label="Quét khuôn mặt">
+  <div class="face-frame" id="face-frame"><video id="face-video" playsinline muted autoplay></video></div>
+  <p class="face-status" id="face-status" aria-live="polite"></p>
+  <div class="face-actions" id="face-actions"></div>
+  <p class="face-note">Ảnh không được lưu hay gửi đi. Việc nhận diện chạy ngay trên điện thoại của bạn.</p>
+</div>
+<div class="app" id="app" hidden>
+  <header class="bar">
+    <div class="brand">
+      <svg viewBox="0 0 100 80" fill="none" stroke="currentColor" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 62V26Q8 12 22 12Q36 12 36 26V62M36 26Q36 12 50 12Q64 12 64 26V54Q64 66 78 66H88M80 58L90 66L80 74"/></svg>
+      <span>Thiên Yết</span>
+    </div>
+    <div class="bar-right">
+      <span class="who" id="who"></span>
+      <button class="btn" type="button" id="open-wheel">Vòng quay</button>
+      <button class="btn ghost" type="button" id="logout">Đăng xuất</button>
+    </div>
+  </header>
+
+  <main>
+    <div class="wrap">
+      <aside class="announce" id="announce" role="status" hidden>
+        <p id="announce-text"></p>
+        <button class="btn ghost" type="button" id="announce-x">Ẩn</button>
+      </aside>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Cung hoàng đạo: Scorpio</p>
+          <h1>Nồng ánh <em>Antares</em></h1>
+          <p>Thiên Yết, đừng đẩy tôi vào lối ngỏ, lỏ nhỏ với nọc độc của toiiii.</p>
+          <p class="personal-greeting" id="personal-greeting" hidden></p>
+          <p class="fact">Antares là đại sao đỏ siêu khổng lồ.</p>
+          <div class="hero-actions">
+            <a class="btn" href="#bday">Khám phá hành trình <span aria-hidden="true">↘</span></a>
+            <button class="btn ghost" type="button" id="hero-open-invite">Mở thiệp mời</button>
+          </div>
+        </div>
+        <div class="hero-sky" id="hero-sky" role="img" aria-label="Sơ đồ chòm sao Thiên Yết với sao Antares ở thân"></div>
+      </section>
+
+      <section class="bday" id="bday">
+        <p class="eyebrow">Sinh nhật</p>
+        <h2 id="bday-text" hidden></h2>
+        <div class="cake-actions">
+          <button class="btn" type="button" id="open-cake">Thổi nến</button>
+          <button class="btn ghost" type="button" id="open-invite-2">Thiệp mời</button>
+          <button class="btn ghost" type="button" id="birthday-music">Phát nhạc sinh nhật ♫</button>
+        </div>
+        <p class="note" id="going-note" hidden></p>
+      </section>
+
+      <section>
+        <div class="sec-head">
+          <p class="eyebrow">Bói Thiên Yết</p>
+          <h2>Hôm nay của bạn</h2>
+        </div>
+        <div class="fortune-card" id="fortune-card" aria-live="polite"></div>
+        <div class="cake-actions" style="margin-top:14px">
+          <button class="btn ghost" type="button" id="fortune-save">Lưu thẻ bói</button>
+        </div>
+        <p class="note" style="margin-top:10px">Chỉ để giải trí. Mỗi ngày một lá, cùng một ID thì cả ngày không đổi.</p>
+      </section>
+
+      <section>
+        <div class="sec-head row">
+          <div>
+            <p class="eyebrow">Lời chúc</p>
+            <h2>Gửi lời chúc sinh nhật</h2>
+          </div>
+          <button class="btn" type="button" id="open-invite">Thiệp mời</button>
+        </div>
+        <div class="personal-wish-banner" role="note">
+          <span class="personal-wish-icon" aria-hidden="true">✦</span>
+          <div><strong>Góc lời chúc riêng của bạn</strong><p>Lời chúc chỉ hiển thị trong tài khoản đang đăng nhập sau khi được duyệt; người khác không thấy trên trang của họ.</p></div>
+          <button class="btn ghost" type="button" id="wish-refresh">Kiểm tra duyệt</button>
+        </div>
+        <form class="wish-form" id="wish-form" novalidate>
+          <label class="panel-label" for="wish-text">Mỗi ID gửi được một lời chúc (tối đa 140 ký tự)</label>
+          <textarea id="wish-text" maxlength="140" placeholder="Viết lời chúc của bạn..."></textarea>
+          <div class="wish-row">
+            <span class="note" id="wish-count">0/140</span>
+            <button class="btn" type="submit" id="wish-send">Gửi lời chúc</button>
+          </div>
+        </form>
+        <p class="wish-msg" id="wish-msg" role="status" aria-live="polite"></p>
+        <div class="my-wish-card" id="my-wish-card" hidden aria-live="polite">
+          <div class="my-wish-top"><span id="my-wish-status" class="wish-status">Đang kiểm tra</span><span class="wish-stars" aria-hidden="true">✦ ✧ ✦</span></div>
+          <p class="my-wish-text" id="my-wish-text"></p>
+          <p class="my-wish-meta" id="my-wish-meta"></p>
+          <div class="cake-actions" style="margin-top:14px"><button class="btn ghost" type="button" id="wish-copy">Sao chép lời chúc</button></div>
+        </div>
+        <ul class="wall" id="wish-list" aria-label="Lời chúc của tài khoản này"></ul>
+        <p class="note" id="wish-empty" style="margin-top:14px">Đăng nhập để xem trạng thái lời chúc của riêng bạn.</p>
+      </section>
+
+      <section>
+        <div class="sec-head">
+          <p class="eyebrow">Đảng án cung</p>
+          <h2>Adele - "Why don't you remember"</h2>
+        </div>
+        <dl class="profile">
+          <div><dt>Giai đoạn</dt><dd>23/10 &ndash; 21/11</dd></div>
+          <div><dt>Nguyên tố</dt><dd>Nước</dd></div>
+          <div><dt>Tính chất</dt><dd>Cố định</dd></div>
+          <div><dt>Hành tinh chủ quản</dt><dd>Sao Diêm Vương, truyền thống là Sao Hỏa</dd></div>
+          <div><dt>Đá gắn với cung</dt><dd>Garnet, Obsidian, Huyết thạch</dd></div>
+          <div><dt>Màu</dt><dd>Đỏ thẫm, đen</dd></div>
+          <div><dt>Chòm sao</dt><dd>Scorpius, sao chính Antares</dd></div>
+        </dl>
+      </section>
+
+      <section>
+        <div class="sec-head">
+          <p class="eyebrow">Hữu Tôn</p>
+          <h2>Nước sâu, đuôi nọc</h2>
+        </div>
+        <div class="traits">
+          <div class="trait"><h3>SS</h3><p>Xuyên giáp: ++</p></div>
+          <div class="trait"><h3>TT</h3><p>Tốc độ di chuyển: --</p></div>
+          <div class="trait"><h3>QL</h3><p>Độ chính xác: ++</p></div>
+          <div class="trait"><h3>KD</h3><p>Tốc độ bắn: +</p></div>
+          <div class="trait"><h3>NC</h3><p>Sát thương: +</p></div>
+          <div class="trait warn"><h3>CC</h3><p>Tốc độ di chuyển khi bắn: ++</p></div>
+        </div>
+        <div class="match">
+          <div><b>Xuất Phúc</b>Cự Giải, Song Ngư, Ma Kết, Xử Nữ</div>
+          <div><b>Độ bền</b>Sư Tử, Bảo Bình</div>
+        </div>
+        <p class="note" style="margin-top:18px">Chiêm bao trí.</p>
+      </section>
+
+      <section class="cta">
+        <p class="eyebrow">Nhân Phẩm</p>
+        <h2>Thử vận may dưới đuôi bọ cạp</h2>
+        <p>Chỉ được sử dụng 01 lượt.</p>
+        <button class="btn big" type="button" id="open-wheel-2">Vòng quay</button>
+      </section>
+    </div>
+  </main>
+  <footer>Antares</footer>
+</div>
+
+<button class="back-to-top" id="back-to-top" type="button" aria-label="Lên đầu trang" title="Lên đầu trang">↑</button>
+
+<div class="panel" id="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title" hidden>
+  <div class="panel-inner">
+    <div class="panel-head">
+      <h2 id="panel-title">Vòng quay Thiên Yết</h2>
+      <div class="head-actions">
+        <button class="btn ghost" type="button" id="sound" aria-pressed="true">Âm: bật</button>
+        <button class="btn ghost" type="button" id="panel-close">Đóng</button>
+      </div>
+    </div>
+    <div class="panel-grid">
+      <div>
+        <div class="wheel">
+          <div class="pointer" aria-hidden="true"></div>
+          <canvas id="wheel" role="img" aria-label="Vòng quay 10 ô vật phẩm"></canvas>
+          <button class="spin" type="button" id="spin">QUAY</button>
+        </div>
+      </div>
+      <div class="side">
+        <div class="result" id="result" aria-live="polite">
+          <p class="lbl">Vật phẩm của bạn</p>
+          <p class="hint">Bấm QUAY ở tâm vòng để quay.</p>
+        </div>
+
+        <div class="extra" id="extra" hidden>
+          <button class="btn" type="button" id="extra-open">Yêu cầu thêm lượt</button>
+          <form class="extra-form" id="extra-form" novalidate hidden>
+            <label class="panel-label" for="extra-text">Lý do xin thêm lượt</label>
+            <textarea id="extra-text" maxlength="140" placeholder="Nói cho chủ trang biết vì sao bạn muốn quay thêm..."></textarea>
+            <div class="wish-row">
+              <span class="note" id="extra-count">0/140</span>
+              <span class="cake-actions">
+                <button class="btn ghost" type="button" id="extra-cancel">Hủy</button>
+                <button class="btn" type="submit" id="extra-send">Gửi yêu cầu</button>
+              </span>
+            </div>
+          </form>
+          <p class="extra-wait" id="extra-wait" role="status" hidden>Yêu cầu của bạn đã được gửi và đang chờ chủ trang duyệt. Trang sẽ tự báo khi có kết quả, bạn có thể ở lại hoặc quay lại sau.</p>
+          <p class="extra-msg" id="extra-msg" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="player">
+          <label for="pname-show">Tên người chơi</label>
+          <input id="pname-show" type="text" readonly value="">
+        </div>
+        <p class="note">Mỗi ID có một lượt quay. Hết lượt, bạn có thể gửi yêu cầu xin thêm. Kết quả được máy chủ ghi lại, đăng nhập lại bằng ID ở máy khác vẫn thấy.</p>
+
+        <div>
+          <p class="panel-label">Các vật phẩm</p>
+          <ul class="slots" id="slot-list"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cake-ov" id="cake" role="dialog" aria-modal="true" aria-labelledby="cake-title" hidden>
+  <div class="cake-box">
+    <h2 id="cake-title">Thổi nến nào!</h2>
+    <svg class="cake-svg" viewBox="0 0 260 220" aria-hidden="false" role="group" aria-label="Bánh sinh nhật có 5 ngọn nến">
+      <ellipse cx="130" cy="198" rx="112" ry="13" fill="#3a0b1a" stroke="#c9a15c" stroke-opacity=".5"/>
+      <rect x="40" y="130" width="180" height="62" rx="10" fill="#7d1230"/>
+      <path d="M40 140Q40 126 54 126H206Q220 126 220 140Q208 152 196 142Q184 154 172 142Q160 154 148 142Q136 154 124 142Q112 154 100 142Q88 154 76 142Q64 154 52 142Q44 150 40 140Z" fill="#efdcd2"/>
+      <rect x="40" y="166" width="180" height="4" fill="#c9a15c" fill-opacity=".6"/>
+      <rect x="70" y="94" width="120" height="40" rx="8" fill="#9c1739"/>
+      <rect x="70" y="90" width="120" height="14" rx="7" fill="#efdcd2"/>
+      <g id="candles"></g>
+    </svg>
+    <p class="cake-msg" id="cake-msg" role="status" aria-live="polite">Chạm vào từng ngọn nến, hoặc thổi vào micro.</p>
+    <div class="cake-actions">
+      <button class="btn" type="button" id="cake-mic">Thổi bằng micro</button>
+      <button class="btn ghost" type="button" id="cake-close">Bỏ qua</button>
+    </div>
+  </div>
+</div>
+
+<div class="cake-ov" id="invite" role="dialog" aria-modal="true" aria-label="Thiệp mời" hidden>
+  <div class="cake-box invite-box">
+    <div class="chips" id="theme-chips" role="radiogroup" aria-label="Mẫu thiệp"></div>
+    <canvas class="invite-cv" id="invite-cv" width="1080" height="1350" role="img"></canvas>
+    <p class="cake-msg" id="invite-msg" role="status" aria-live="polite"></p>
+    <div class="cake-actions">
+      <button class="btn" type="button" id="invite-save">Lưu thiệp</button>
+      <button class="btn ghost" type="button" id="invite-cal">Thêm vào lịch</button>
+      <button class="btn ghost" type="button" id="invite-share">Chia sẻ link</button>
+    </div>
+    <form class="rsvp" id="rsvp-form" novalidate>
+      <span class="panel-label" id="rsvp-label">Bạn sẽ đến chứ?</span>
+      <p class="note" id="rsvp-count" hidden></p>
+      <div class="chips" id="rsvp-opts" role="radiogroup" aria-labelledby="rsvp-label">
+        <button type="button" class="chip" role="radio" aria-checked="false" data-v="yes">Chắc chắn đến</button>
+        <button type="button" class="chip" role="radio" aria-checked="false" data-v="maybe">Có thể đến</button>
+        <button type="button" class="chip" role="radio" aria-checked="false" data-v="no">Chưa đến được</button>
+      </div>
+      <div class="stepper" id="rsvp-plus-row" hidden>
+        <span>Đi cùng</span>
+        <button type="button" class="chip step" id="rsvp-minus" aria-label="Bớt một người">&minus;</button>
+        <output id="rsvp-plus-out" aria-live="polite">0</output>
+        <button type="button" class="chip step" id="rsvp-plus-btn" aria-label="Thêm một người">+</button>
+        <span>người</span>
+      </div>
+      <textarea id="rsvp-note" maxlength="140" placeholder="Lời nhắn cho chủ tiệc (không bắt buộc)"></textarea>
+      <button class="btn" type="submit" id="rsvp-send">Gửi xác nhận</button>
+      <p class="extra-msg" id="rsvp-msg" role="status" aria-live="polite"></p>
+    </form>
+    <button class="btn ghost" type="button" id="invite-close">Đóng</button>
+  </div>
+</div>
+
+<div class="cake-ov" id="grant" role="dialog" aria-modal="true" aria-labelledby="grant-title" hidden>
+  <div class="cake-box">
+    <h2 id="grant-title">Bạn được cấp thêm lượt quay</h2>
+    <p class="grant-n" id="grant-n"></p>
+    <p class="cake-msg" id="grant-msg"></p>
+    <div class="cake-actions">
+      <button class="btn" type="button" id="grant-ok">Quay ngay</button>
+      <button class="btn ghost" type="button" id="grant-close">Đóng</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var ITEMS = [
+    '01 thẻ tuần', '01 thẻ VIP tuần tiết kiệm', '01 thẻ BOOYAH', '01 gói 51 kim cương', '01 gói 113 kim cương',
+    '01 gói 25 kim cương', '01 gói 283 kim cương', '02 thẻ VIP tuần tiết kiệm', '01 gói 51 kim cương', '01 gói 113 kim cương'
+  ];
+  var N = ITEMS.length;
+  var SLICE = 360 / N;
+  var IDLE_SPEED = 7; // degrees per second while waiting
+  var STORE_KEY = 'thienyet.antares.v1';
+  var SOUND_KEY = 'thienyet.antares.sound';
+  var SHEET_URL = 'https://script.google.com/macros/s/AKfycbyQlMvlxL35RJGQIVX3_I97QS67b0iEvic2TxsOcAhoicGjnn7EuUhVlQcOs_hS6I3_VA/exec';
+  // Ngày sinh nhật dạng 'MM-DD' (ví dụ '10-28'). Để trống thì ẩn phần đếm ngược.
+  var BIRTHDAY = '11-14';
+  // Tên người sinh nhật, hiện trong lời chúc. Để trống cũng được.
+  var OWNER_NAME = 'Trem';
+  // Thông tin trên thiệp mời (để trống thì dòng đó không hiện). Ví dụ: INVITE_TIME = '00:00', INVITE_PLACE = 'Yết Tương'
+  var INVITE_TIME = '';
+  var INVITE_PLACE = '';
+  var reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function $(id) { return document.getElementById(id); }
+  var NS = 'http://www.w3.org/2000/svg';
+
+  /* ---------- Discourage saving the page (right-click, save, view-source shortcuts) ---------- */
+  function inField(t) { return t && t.closest && t.closest('input, textarea'); }
+  document.addEventListener('contextmenu', function (e) { if (!inField(e.target)) e.preventDefault(); });
+  document.addEventListener('dragstart', function (e) { e.preventDefault(); });
+  document.addEventListener('keydown', function (e) {
+    var k = (e.key || '').toLowerCase();
+    var mod = e.ctrlKey || e.metaKey;
+    if (k === 'f12' ||
+        (mod && (k === 's' || k === 'u' || k === 'p')) ||
+        (mod && e.shiftKey && (k === 'i' || k === 'j' || k === 'c')) ||
+        (e.metaKey && e.altKey && (k === 'i' || k === 'u' || k === 'j'))) {
+      e.preventDefault();
+    }
+  });
+
+  /* ---------- Accounts (remembered on this device, one per ID) ---------- */
+  var ACCOUNTS_KEY = 'thienyet.antares.accounts.v2';
+  var SESSION_KEY = 'thienyet.antares.session.v2';
+  function keyOf(id) { return String(id).trim().toLowerCase(); }
+  function validAcc(s) { return !!(s && typeof s.id === 'string' && s.id && typeof s.name === 'string' && s.name); }
+  function readAccounts() {
+    try {
+      var raw = localStorage.getItem(ACCOUNTS_KEY);
+      var o = raw ? JSON.parse(raw) : null;
+      if (o && typeof o === 'object') return o;
+    } catch (err) { /* storage unavailable */ }
+    return {};
+  }
+  function writeAccounts() { try { localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts)); } catch (err) { /* ignore */ } }
+  function setSession(id) {
+    try { if (id) localStorage.setItem(SESSION_KEY, keyOf(id)); else localStorage.removeItem(SESSION_KEY); } catch (err) { /* ignore */ }
+  }
+  function saveState() { if (saved) { accounts[keyOf(saved.id)] = saved; writeAccounts(); } }
+
+  if (location.hash === '#reset') {
+    try {
+      localStorage.removeItem(STORE_KEY); localStorage.removeItem(ACCOUNTS_KEY); localStorage.removeItem(SESSION_KEY);
+    } catch (err) { /* ignore */ }
+    try { window.history.replaceState(null, '', location.pathname + location.search); } catch (err) { /* ignore */ }
+  }
+  var accounts = readAccounts();
+  var saved = null;
+
+  // Bring over the single player saved by the previous version of this page
+  try {
+    var rawOld = localStorage.getItem(STORE_KEY);
+    if (rawOld) {
+      var old = JSON.parse(rawOld);
+      if (validAcc(old)) {
+        if (!accounts[keyOf(old.id)]) { accounts[keyOf(old.id)] = old; writeAccounts(); }
+        setSession(old.id);
+      }
+      localStorage.removeItem(STORE_KEY);
+    }
+  } catch (err) { /* ignore */ }
+
+  // Returning visitor who has not logged out
+  try {
+    var sid = localStorage.getItem(SESSION_KEY);
+    if (sid && validAcc(accounts[sid])) saved = accounts[sid];
+  } catch (err) { /* ignore */ }
+
+  /* ---------- Starfield ---------- */
+  var sky = $('sky'), sctx = sky.getContext('2d'), stars = [], sw = 0, sh = 0;
+  function initSky() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    sw = window.innerWidth; sh = window.innerHeight;
+    sky.width = sw * dpr; sky.height = sh * dpr;
+    sctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    var count = Math.min(Math.round((sw * sh) / 9000), 220);
+    stars = [];
+    for (var i = 0; i < count; i++) {
+      stars.push({ x: Math.random() * sw, y: Math.random() * sh, r: Math.random() * 1.3 + 0.3,
+        ph: Math.random() * 6.28, sp: Math.random() * 1.2 + 0.4, red: Math.random() < 0.18 });
+    }
+  }
+  function drawSky(t) {
+    sctx.clearRect(0, 0, sw, sh);
+    for (var i = 0; i < stars.length; i++) {
+      var s = stars[i];
+      var a = reduced ? 0.55 : 0.3 + 0.4 * Math.sin(t / 1000 * s.sp + s.ph);
+      sctx.fillStyle = s.red ? 'rgba(240,100,120,' + a.toFixed(3) + ')' : 'rgba(239,220,210,' + a.toFixed(3) + ')';
+      sctx.beginPath(); sctx.arc(s.x, s.y, s.r, 0, 6.2832); sctx.fill();
+    }
+    if (!reduced && !document.body.classList.contains('calm-mode')) requestAnimationFrame(drawSky);
+  }
+  initSky();
+  requestAnimationFrame(drawSky);
+  var lastW = window.innerWidth;
+  window.addEventListener('resize', function () {
+    // ignore height-only changes (mobile address bar) to avoid re-seeding the stars while scrolling
+    if (window.innerWidth === lastW) return;
+    lastW = window.innerWidth; initSky(); if (reduced) drawSky(0);
+  });
+
+  /* ---------- Scorpius constellation ---------- */
+  var STARS = [
+    [330, 64], [296, 78], [308, 110, 'Dschubba'], [338, 104], [288, 150], [278, 178, 'Antares', true],
+    [290, 208], [262, 262], [232, 312], [196, 352], [150, 378], [108, 396], [84, 430], [92, 466],
+    [124, 480, 'Shaula'], [142, 468]
+  ];
+  var LINES = [[1, 2], [2, 3], [3, 0], [2, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9], [9, 10], [10, 11], [11, 12], [12, 13], [13, 14], [14, 15]];
+
+  function buildConstellation(target, labels) {
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('viewBox', '0 0 420 520');
+    svg.setAttribute('preserveAspectRatio', labels ? 'xMidYMid meet' : 'xMidYMid slice');
+    svg.setAttribute('aria-hidden', 'true');
+    var defs = document.createElementNS(NS, 'defs');
+    defs.innerHTML = '<radialGradient id="glow' + (labels ? 'A' : 'B') + '"><stop offset="0" stop-color="#f0405a" stop-opacity=".9"/><stop offset="1" stop-color="#f0405a" stop-opacity="0"/></radialGradient>';
+    svg.appendChild(defs);
+    LINES.forEach(function (l) {
+      var a = STARS[l[0]], b = STARS[l[1]];
+      var ln = document.createElementNS(NS, 'line');
+      ln.setAttribute('x1', a[0]); ln.setAttribute('y1', a[1]);
+      ln.setAttribute('x2', b[0]); ln.setAttribute('y2', b[1]);
+      ln.setAttribute('stroke', 'rgba(201,161,92,0.55)'); ln.setAttribute('stroke-width', '1.2');
+      svg.appendChild(ln);
+    });
+    STARS.forEach(function (s) {
+      var big = s[3];
+      if (big) {
+        var g = document.createElementNS(NS, 'circle');
+        g.setAttribute('cx', s[0]); g.setAttribute('cy', s[1]); g.setAttribute('r', 34);
+        g.setAttribute('fill', 'url(#glow' + (labels ? 'A' : 'B') + ')');
+        svg.appendChild(g);
+      }
+      var c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', s[0]); c.setAttribute('cy', s[1]); c.setAttribute('r', big ? 7 : 3.2);
+      c.setAttribute('fill', big ? '#f0405a' : '#efdcd2');
+      svg.appendChild(c);
+      if (labels && s[2]) {
+        var t = document.createElementNS(NS, 'text');
+        t.setAttribute('x', s[0] + (s[2] === 'Shaula' ? -12 : 16)); t.setAttribute('y', s[1] + 4);
+        t.setAttribute('text-anchor', s[2] === 'Shaula' ? 'end' : 'start');
+        t.setAttribute('fill', '#ab9298'); t.setAttribute('font-size', '13');
+        t.setAttribute('font-family', 'Be Vietnam Pro, system-ui, sans-serif');
+        t.setAttribute('letter-spacing', '1.5');
+        t.textContent = s[2];
+        svg.appendChild(t);
+      }
+    });
+    target.appendChild(svg);
+  }
+  buildConstellation($('gate-sky'), false);
+  buildConstellation($('hero-sky'), true);
+
+  /* ---------- Wheel state ---------- */
+  var panel = $('panel'), cv = $('wheel'), ctx = cv.getContext('2d');
+  var spinBtn = $('spin');
+  var cssSize = 0, dpr = 1;
+  var rot = 0, spinning = false, done = false, winIdx = null, loopId = 0, lastT = 0, opener = null;
+
+  var slotList = $('slot-list');
+  ITEMS.forEach(function (name) { var li = document.createElement('li'); li.textContent = name; slotList.appendChild(li); });
+
+  function mod(a, n) { return ((a % n) + n) % n; }
+  function rad(d) { return d * Math.PI / 180; }
+  function stamp() {
+    var d = new Date();
+    function p(n) { return (n < 10 ? '0' : '') + n; }
+    return p(d.getHours()) + ':' + p(d.getMinutes()) + ' ' + p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear();
+  }
+
+  // The Apps Script draws the prize and enforces one spin per ID, so every call needs the network.
+  function callServer(payload) {
+    var ctl = ('AbortController' in window) ? new AbortController() : null;
+    var timer = ctl ? setTimeout(function () { ctl.abort(); }, 25000) : 0;
+    return fetch(SHEET_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      signal: ctl ? ctl.signal : undefined
+    }).then(function (r) {
+      if (timer) clearTimeout(timer);
+      if (!r.ok) { var he = new Error('http'); he.code = 'http' + r.status; throw he; }
+      return r.json().catch(function () { var fe = new Error('format'); fe.code = 'format'; throw fe; });
+    }, function (err) {
+      if (timer) clearTimeout(timer);
+      var ne = new Error('net');
+      ne.code = (err && err.name === 'AbortError') ? 'timeout' : 'net';
+      throw ne;
+    });
+  }
+  function slotFrom(d) {
+    var n = Number(d && d.slot);
+    if (isFinite(n) && n >= 0 && n < N && n === Math.floor(n)) return n;
+    return d && d.item ? ITEMS.indexOf(d.item) : -1;
+  }
+
+  function setResult(valText, hintText, withCard) {
+    var res = $('result');
+    res.textContent = '';
+    var lbl = document.createElement('p'); lbl.className = 'lbl'; lbl.textContent = 'Vật phẩm của bạn';
+    res.appendChild(lbl);
+    if (valText) {
+      var val = document.createElement('p'); val.className = 'val'; val.textContent = valText;
+      res.appendChild(val);
+    }
+    if (hintText) {
+      var hint = document.createElement('p'); hint.className = 'hint'; hint.textContent = hintText;
+      res.appendChild(hint);
+    }
+    if (withCard) {
+      var act = document.createElement('div'); act.className = 'actions';
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'btn ghost'; b.textContent = 'Lưu thẻ kết quả';
+      b.addEventListener('click', function () { saveCard(b); });
+      act.appendChild(b); res.appendChild(act);
+    }
+  }
+  function showResult(item, time, note) {
+    setResult(item, note || (time ? 'Quay lúc ' + time + '. Bạn đã dùng hết lượt quay.' : 'Bạn đã dùng hết lượt quay.'), true);
+  }
+  function showNotice(msg, code) {
+    setResult('', msg, false);
+    if (code) {
+      var c = document.createElement('p'); c.className = 'note'; c.textContent = 'Mã lỗi: ' + code;
+      $('result').appendChild(c);
+    }
+  }
+
+  function lockWheel(idx) {
+    done = true; winIdx = idx;
+    rot = mod(-(idx * SLICE + SLICE / 2), 360);
+    spinBtn.disabled = true; spinBtn.textContent = 'HẾT';
+    spinBtn.setAttribute('aria-label', 'Bạn đã hết lượt quay');
+  }
+
+  /* ---------- Lượt quay còn lại, xin thêm lượt, thông báo được cấp ---------- */
+  // Số lượt còn lại. Tài khoản cũ lưu trên máy chưa có số này: đã có kết quả thì coi như hết lượt, máy chủ sẽ báo lại ngay sau đó.
+  function hasResult(acc) { return !!acc && typeof acc.idx === 'number' && acc.idx >= 0 && acc.idx < N; }
+  function leftOf(acc) {
+    if (acc && typeof acc.left === 'number' && isFinite(acc.left)) return Math.max(0, acc.left);
+    return hasResult(acc) ? 0 : 1;
+  }
+  function turnsText(n) { return n + ' lượt quay'; }
+
+  // Đưa vòng quay và khung kết quả về đúng trạng thái theo số lượt còn lại
+  function paintWheel() {
+    if (!saved || spinning) return;
+    var left = leftOf(saved), has = hasResult(saved);
+    if (left > 0) {
+      done = false; winIdx = null;
+      spinBtn.disabled = false; spinBtn.textContent = 'QUAY'; spinBtn.removeAttribute('aria-label');
+      if (has) showResult(ITEMS[saved.idx], saved.time, 'Bạn còn ' + turnsText(left) + '. Bấm QUAY ở tâm vòng.');
+      else setResult('', 'Bạn có ' + turnsText(left) + '. Bấm QUAY ở tâm vòng.', false);
+    } else if (has) {
+      lockWheel(saved.idx);
+      showResult(ITEMS[saved.idx], saved.time);
+    }
+    paintExtra();
+  }
+
+  var extraEl = $('extra'), extraBtn = $('extra-open'), extraForm = $('extra-form'), extraText = $('extra-text');
+  var extraWait = $('extra-wait'), extraMsg = $('extra-msg'), extraSend = $('extra-send');
+  var extraOpen = false, extraSending = false;
+  function paintExtra() {
+    var show = !!saved && !spinning && hasResult(saved) && leftOf(saved) <= 0;
+    extraEl.hidden = !show;
+    if (!show) { extraOpen = false; return; }
+    var waiting = !!saved.pending;
+    extraWait.hidden = !waiting;
+    extraBtn.hidden = waiting || extraOpen;
+    extraForm.hidden = waiting || !extraOpen;
+    if (waiting) extraMsg.textContent = '';
+  }
+  extraBtn.addEventListener('click', function () {
+    extraOpen = true; extraMsg.textContent = ''; paintExtra(); extraText.focus();
+  });
+  $('extra-cancel').addEventListener('click', function () {
+    extraOpen = false; extraMsg.textContent = ''; paintExtra(); extraBtn.focus();
+  });
+  extraText.addEventListener('input', function () { $('extra-count').textContent = extraText.value.length + '/140'; });
+  extraForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (extraSending || !saved) return;
+    var text = extraText.value.replace(/\s+/g, ' ').trim();
+    if (!text) { extraMsg.textContent = 'Hãy viết lý do trước khi gửi.'; extraText.focus(); return; }
+    extraSending = true; extraSend.disabled = true; extraMsg.textContent = 'Đang gửi...';
+    var who = saved;
+    callServer({ action: 'extra', id: who.id, name: who.name, text: text }).then(function (d) {
+      if (!d || !d.ok) { var er = new Error('server'); er.code = d && d.error; throw er; }
+      who.pending = true;
+      if (saved === who) saveState(); else { accounts[keyOf(who.id)] = who; writeAccounts(); }
+      if (saved === who) {
+        extraOpen = false; extraText.value = ''; $('extra-count').textContent = '0/140';
+        extraMsg.textContent = ''; paintExtra(); syncPoll();
+      }
+    }).catch(function (err) {
+      var code = (err && err.code) || 'unknown';
+      if (code === 'has') { extraMsg.textContent = 'Bạn vẫn còn lượt quay.'; refreshStatus(); }
+      else extraMsg.textContent = 'Chưa gửi được. Hãy thử lại. Mã lỗi: ' + code;
+    }).then(function () { extraSending = false; extraSend.disabled = false; });
+  });
+
+  // Hỏi máy chủ số lượt hiện tại. Khi đang chờ duyệt, trang tự hỏi lại mỗi 10 giây.
+  var pollId = 0;
+  function syncPoll() {
+    var need = !!saved && !!saved.pending;
+    if (need && !pollId) pollId = setInterval(refreshStatus, 10000);
+    else if (!need && pollId) { clearInterval(pollId); pollId = 0; }
+  }
+  function refreshStatus() {
+    var who = saved;
+    if (!who || spinning) return Promise.resolve();
+    return callServer({ action: 'status', id: who.id }).then(function (d) {
+      if (!d || !d.ok || saved !== who || spinning) return;
+      who.left = Number(d.left) || 0;
+      who.pending = !!d.pending;
+      if (d.rsvp && d.rsvp.status) who.rsvp = { status: String(d.rsvp.status), plus: Number(d.rsvp.plus) || 0, note: String(d.rsvp.note || '') };
+      var sl = slotFrom(d);
+      if (d.found && sl >= 0) { who.idx = sl; who.item = ITEMS[sl]; }
+      saveState();
+      paintWheel();
+      if (inviteEl.hidden) paintRsvp();
+      syncPoll();
+      if (d.notices && d.notices.length) showGrant(d.notices);
+    }).catch(function () { /* mất mạng tạm thời: lần hỏi sau sẽ thử lại */ });
+  }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && saved && saved.pending) refreshStatus(); });
+
+  var grantEl = $('grant'), grantOpen = false;
+  function showGrant(notices) {
+    if (grantOpen || !saved) return;
+    var total = 0, rowsSeen = [];
+    notices.forEach(function (n) { total += Number(n.grant) || 0; rowsSeen.push(n.row); });
+    grantOpen = true;
+    if (total > 0) {
+      $('grant-title').textContent = 'Bạn được cấp thêm lượt quay';
+      $('grant-n').textContent = '+' + total;
+      $('grant-n').hidden = false;
+      $('grant-msg').textContent = 'Chủ trang đã duyệt yêu cầu của bạn: bạn được cấp thêm ' + turnsText(total) + '.';
+      $('grant-ok').hidden = false;
+    } else {
+      $('grant-title').textContent = 'Yêu cầu chưa được duyệt';
+      $('grant-n').hidden = true;
+      $('grant-msg').textContent = 'Lần này chủ trang chưa cấp thêm lượt quay.';
+      $('grant-ok').hidden = true;
+    }
+    grantEl.hidden = false;
+    document.body.style.overflow = 'hidden';
+    (total > 0 ? $('grant-ok') : $('grant-close')).focus();
+    if (total > 0) { confetti(); fanfare(); }
+    callServer({ action: 'ack', id: saved.id, rows: rowsSeen }).catch(function () { /* hiện lại lần sau cũng không sao */ });
+  }
+  function closeGrant() {
+    grantEl.hidden = true; grantOpen = false;
+    if (panel.hidden && cakeEl.hidden && inviteEl.hidden) document.body.style.overflow = '';
+  }
+  $('grant-close').addEventListener('click', closeGrant);
+  $('grant-ok').addEventListener('click', function () {
+    closeGrant();
+    if (panel.hidden) openPanel($('open-wheel'));
+  });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !grantEl.hidden) closeGrant(); });
+
+  /* ---------- Gate and entering the page ---------- */
+  var gate = $('gate'), app = $('app'), gmsg = $('gate-msg'), ghint = $('gate-hint');
+  var uidEl = $('uid'), nameEl = $('pname'), autoFilled = false;
+
+  var lookups = {};            // key -> { found, name, slot, item } or { failed: true }
+  var lookupTimer = 0, submitting = false;
+  var tremBtn = document.querySelector('.trem');
+
+  function lockName(n) {
+    nameEl.value = n; nameEl.readOnly = true; autoFilled = true;
+    ghint.textContent = 'Chào mừng trở lại, ' + n + '. Bấm TREM để vào tài khoản.';
+  }
+  function unlockName() {
+    if (autoFilled) { nameEl.value = ''; autoFilled = false; }
+    nameEl.readOnly = false;
+  }
+  function doLookup(id) {
+    var k = keyOf(id);
+    return callServer({ action: 'lookup', id: id }).then(function (d) {
+      if (!d || !d.ok) throw new Error('bad');
+      lookups[k] = { found: !!d.found, name: d.name || '', slot: d.slot, item: d.item || '', left: d.left, pending: d.pending };
+    }).catch(function () {
+      lookups[k] = { failed: true };
+    }).then(function () {
+      if (keyOf(uidEl.value) === k) syncGate();
+    });
+  }
+
+  // Known ID (on this device or on the server): show the saved name and lock it. New ID: let the player set a name.
+  function syncGate() {
+    var id = uidEl.value.trim();
+    var k = keyOf(id);
+    var acc = id ? accounts[k] : null;
+    var rem = id ? lookups[k] : null;
+    gmsg.textContent = '';
+    clearTimeout(lookupTimer);
+    if (validAcc(acc)) { lockName(acc.name); return; }
+    if (rem && rem.found && rem.name) { lockName(rem.name); return; }
+    unlockName();
+    if (!id) { ghint.textContent = ''; return; }
+    if (!rem) {
+      ghint.textContent = 'Đang kiểm tra ID...';
+      lookupTimer = setTimeout(function () { doLookup(id); }, 600);
+    } else if (rem.failed) {
+      ghint.textContent = 'Chưa kiểm tra được ID trên máy chủ. Bạn vẫn có thể tiếp tục.';
+    } else if (rem.found) {
+      ghint.textContent = 'ID này đã có kết quả. Hãy nhập tên để vào tài khoản.';
+    } else {
+      ghint.textContent = 'ID mới. Hãy nhập tên để thiết lập tài khoản.';
+    }
+  }
+  uidEl.addEventListener('input', syncGate);
+
+  function enterApp(animate) {
+    $('who').textContent = saved.name + ' · ID ' + saved.id;
+    $('pname-show').value = saved.name;
+    var greeting = $('personal-greeting');
+    if (greeting) {
+      greeting.textContent = 'Chào ' + saved.name + ' — đêm sao Antares hôm nay có một góc dành riêng cho bạn.';
+      greeting.hidden = false;
+    }
+    resetWheelUI();
+    app.hidden = false;
+    if (calmButton) calmButton.hidden = false;
+    window.scrollTo(0, 0);
+    paintWheel();
+    syncPoll();
+    refreshStatus();
+    onEnter();
+    if (animate) {
+      gate.classList.add('leaving');
+      setTimeout(function () { gate.hidden = true; }, reduced ? 250 : 750);
+    } else {
+      gate.hidden = true;
+    }
+  }
+
+  function login(acc) {
+    saved = acc;
+    setSession(saved.id);
+    gmsg.textContent = '';
+    enterApp(true);
+  }
+
+  function finishSubmit(id) {
+    var k = keyOf(id), rem = lookups[k];
+    if (rem && rem.found) {
+      // the server already has this ID (for example it was used on another device)
+      var nm = rem.name || nameEl.value.trim();
+      if (!nm) { gmsg.textContent = 'ID này đã có kết quả. Hãy nhập tên để vào tài khoản.'; nameEl.focus(); return; }
+      var acc = { id: id, name: nm, time: '' };
+      var si = slotFrom(rem);
+      if (si >= 0) { acc.idx = si; acc.item = ITEMS[si]; }
+      if (typeof rem.left === 'number') acc.left = rem.left;
+      acc.pending = !!rem.pending;
+      accounts[k] = acc; writeAccounts();
+      login(acc);
+      return;
+    }
+    var name = nameEl.value.trim();
+    if (!name) { gmsg.textContent = 'ID mới: hãy nhập tên để thiết lập tài khoản.'; nameEl.focus(); return; }
+    var created = { id: id, name: name };
+    accounts[k] = created; writeAccounts();
+    login(created);
+  }
+
+  $('gate-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (submitting) return;
+    var id = uidEl.value.trim();
+    if (!id) { gmsg.textContent = 'Hãy nhập ID của bạn.'; uidEl.focus(); return; }
+    var k = keyOf(id);
+    if (validAcc(accounts[k])) { login(accounts[k]); return; }
+    var rem = lookups[k];
+    if (!rem || rem.failed) {
+      // ask the server first, so an ID used elsewhere is not treated as new
+      submitting = true; tremBtn.disabled = true;
+      var label = tremBtn.textContent; tremBtn.textContent = '...';
+      doLookup(id).then(function () {
+        submitting = false; tremBtn.disabled = false; tremBtn.textContent = label;
+        if (keyOf(uidEl.value) === k) finishSubmit(id);
+      });
+      return;
+    }
+    finishSubmit(id);
+  });
+
+  /* ---------- Wheel drawing ---------- */
+  function sizeWheel() {
+    var w = cv.clientWidth || 320;
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    cssSize = w;
+    cv.width = Math.round(w * dpr); cv.height = Math.round(w * dpr);
+    drawWheel();
+  }
+
+  function drawWheel() {
+    var w = cssSize; if (!w) return;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, w);
+    var cx = w / 2, cy = w / 2, R = w / 2 - 6, Rs = R - 18;
+
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2832);
+    var rim = ctx.createLinearGradient(0, 0, w, w);
+    rim.addColorStop(0, '#2a0c16'); rim.addColorStop(0.5, '#4a1424'); rim.addColorStop(1, '#1a0710');
+    ctx.fillStyle = rim; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(201,161,92,0.85)'; ctx.stroke();
+
+    for (var i = 0; i < N; i++) {
+      var a0 = rad(rot + i * SLICE - 90), a1 = a0 + rad(SLICE);
+      ctx.beginPath(); ctx.moveTo(cx, cy); ctx.arc(cx, cy, Rs, a0, a1); ctx.closePath();
+      var g = ctx.createRadialGradient(cx, cy, Rs * 0.1, cx, cy, Rs);
+      if (i % 2 === 0) { g.addColorStop(0, '#2b0a15'); g.addColorStop(1, '#5c0f27'); }
+      else { g.addColorStop(0, '#16060c'); g.addColorStop(1, '#3a0b1a'); }
+      ctx.fillStyle = g; ctx.fill();
+      var isWin = (winIdx === i && !spinning);
+      if (isWin) { ctx.fillStyle = 'rgba(240,64,90,0.38)'; ctx.fill(); }
+      ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(201,161,92,0.45)'; ctx.stroke();
+
+      ctx.save();
+      ctx.translate(cx, cy); ctx.rotate(a0 + rad(SLICE / 2));
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+      var fs = Math.max(10, Math.min(17, Rs * 0.072));
+      ctx.font = '500 ' + fs + 'px "Be Vietnam Pro", system-ui, sans-serif';
+      var maxW = Rs * 0.62;
+      while (ctx.measureText(ITEMS[i]).width > maxW && fs > 8) { fs -= 0.5; ctx.font = '500 ' + fs + 'px "Be Vietnam Pro", system-ui, sans-serif'; }
+      ctx.fillStyle = isWin ? '#ffffff' : '#efdcd2';
+      ctx.fillText(ITEMS[i], Rs - 14, 0);
+      ctx.restore();
+    }
+
+    for (var k = 0; k < N * 2; k++) {
+      var ang = rad(rot + k * (SLICE / 2) - 90);
+      ctx.beginPath(); ctx.arc(cx + Math.cos(ang) * (R - 9), cy + Math.sin(ang) * (R - 9), 2.4, 0, 6.2832);
+      ctx.fillStyle = k % 2 === 0 ? 'rgba(240,64,90,0.95)' : 'rgba(201,161,92,0.8)';
+      ctx.fill();
+    }
+    ctx.beginPath(); ctx.arc(cx, cy, Rs * 0.2, 0, 6.2832);
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(201,161,92,0.9)'; ctx.stroke();
+  }
+
+  function frame(t) {
+    var dt = lastT ? Math.min((t - lastT) / 1000, 0.1) : 0;
+    lastT = t;
+    if (!spinning && !done && !reduced) rot = mod(rot + IDLE_SPEED * dt, 360);
+    drawWheel();
+    loopId = requestAnimationFrame(frame);
+  }
+  function startLoop() { cancelAnimationFrame(loopId); lastT = 0; loopId = requestAnimationFrame(frame); }
+  function stopLoop() { cancelAnimationFrame(loopId); }
+
+  function randInt(n) {
+    var lim = Math.floor(0x100000000 / n) * n, a = new Uint32Array(1);
+    do { crypto.getRandomValues(a); } while (a[0] >= lim);
+    return a[0] % n;
+  }
+
+  /* ---------- Quay: máy chủ bốc thăm, vòng quay dừng đúng ô đó ---------- */
+  function spin() {
+    if (spinning || done || !saved) return;
+    spinning = true; winIdx = null; spinBtn.disabled = true; spinBtn.textContent = '...';
+    unlockAudio();
+    showNotice('Đang kết nối máy chủ, chờ vài giây...');
+    callServer({ action: 'spin', id: saved.id, name: saved.name }).then(function (d) {
+      if (!d || !d.ok) { var er = new Error('server'); er.code = d && d.error; throw er; }
+      var slot = slotFrom(d);
+      if (slot < 0) throw new Error('slot');
+      saved.idx = slot; saved.item = ITEMS[slot];
+      saved.time = d.existing ? (saved.time || '') : stamp();
+      saved.left = d.existing ? 0 : (Number(d.left) || 0);
+      saved.pending = !!d.pending;
+      saveState();
+      if (d.existing) {
+        spinning = false;
+        lockWheel(slot);
+        showResult(ITEMS[slot], '', 'Tài khoản này đã dùng hết lượt quay.');
+        paintExtra(); syncPoll();
+        return;
+      }
+      animateTo(slot);
+    }).catch(function (err) {
+      spinning = false; spinBtn.disabled = false; spinBtn.textContent = 'QUAY';
+      var code = (err && err.code) || 'unknown';
+      if (code === 'out') showNotice('Phần thưởng đã hết. Hãy liên hệ chủ trang.');
+      else showNotice('Không quay được. Hãy kiểm tra mạng rồi bấm QUAY lại. Nếu vẫn lỗi, gửi mã lỗi này cho chủ trang.', code);
+    });
+  }
+
+  function animateTo(target) {
+    var jitter = (Math.random() - 0.5) * (SLICE * 0.55);
+    var desired = mod(-(target * SLICE + SLICE / 2 + jitter), 360);
+    var start = mod(rot, 360);
+    var delta = mod(desired - start, 360);
+    var total = (5 + randInt(3)) * 360 + delta;
+    var dur = reduced ? 900 : 5400;
+    var t0 = performance.now();
+    var lastIdx = Math.floor(mod(-rot, 360) / SLICE);
+    function step(now) {
+      var p = Math.min((now - t0) / dur, 1);
+      var e = 1 - Math.pow(1 - p, 4);
+      rot = start + total * e;
+      var cur = Math.floor(mod(-rot, 360) / SLICE);
+      if (cur !== lastIdx) { lastIdx = cur; tick(); }
+      if (p < 1) { requestAnimationFrame(step); return; }
+      rot = mod(rot, 360);
+      spinning = false;
+      var more = leftOf(saved);
+      if (more > 0) {
+        done = false; winIdx = null;
+        spinBtn.disabled = false; spinBtn.textContent = 'QUAY'; spinBtn.removeAttribute('aria-label');
+        showResult(ITEMS[target], saved.time, 'Bạn còn ' + turnsText(more) + '. Bấm QUAY để quay tiếp.');
+      } else {
+        lockWheel(target);
+        showResult(ITEMS[target], saved.time);
+      }
+      paintExtra();
+      fireworks();
+      fanfare();
+    }
+    requestAnimationFrame(step);
+  }
+  spinBtn.addEventListener('click', spin);
+
+  /* ---------- Sound ---------- */
+  var AC = window.AudioContext || window.webkitAudioContext, actx = null, soundOn = true, lastTickT = 0;
+  try { soundOn = localStorage.getItem(SOUND_KEY) !== 'off'; } catch (err) { /* ignore */ }
+  function unlockAudio() {
+    if (!AC || !soundOn) return;
+    try { if (!actx) actx = new AC(); if (actx.state === 'suspended') actx.resume(); } catch (err) { /* ignore */ }
+  }
+  function beep(freq, dur, type, vol, delay) {
+    if (!actx || !soundOn) return;
+    try {
+      var t = actx.currentTime + (delay || 0);
+      var o = actx.createOscillator(), g = actx.createGain();
+      o.type = type || 'sine'; o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(vol || 0.08, t + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+      o.connect(g); g.connect(actx.destination);
+      o.start(t); o.stop(t + dur + 0.02);
+    } catch (err) { /* ignore */ }
+  }
+  function tick() {
+    var n = performance.now();
+    if (n - lastTickT < 45) return;
+    lastTickT = n;
+    beep(900, 0.05, 'square', 0.03);
+  }
+  function fanfare() {
+    [523.25, 659.25, 783.99, 1046.5].forEach(function (f, i) { beep(f, 0.35, 'triangle', 0.09, i * 0.12); });
+    beep(1318.5, 0.7, 'sine', 0.07, 0.5);
+  }
+  var soundBtn = $('sound');
+  function paintSound() {
+    soundBtn.textContent = soundOn ? 'Âm: bật' : 'Âm: tắt';
+    soundBtn.setAttribute('aria-pressed', soundOn ? 'true' : 'false');
+  }
+  soundBtn.addEventListener('click', function () {
+    soundOn = !soundOn;
+    try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (err) { /* ignore */ }
+    if (soundOn) { unlockAudio(); beep(660, 0.1, 'sine', 0.06); }
+    paintSound();
+  });
+  paintSound();
+
+  /* ---------- Fireworks ---------- */
+  var fx = $('fx'), fctx = fx.getContext('2d'), parts = [], fxUntil = 0, fxRunning = false;
+  function sizeFx() {
+    var d = Math.min(window.devicePixelRatio || 1, 2);
+    fx.width = Math.round(window.innerWidth * d); fx.height = Math.round(window.innerHeight * d);
+    fctx.setTransform(d, 0, 0, d, 0, 0);
+  }
+  function burst(x, y) {
+    for (var i = 0; i < 46; i++) {
+      var a = Math.random() * 6.2832, sp = 2 + Math.random() * 5;
+      parts.push({ x: x, y: y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1,
+        decay: 0.012 + Math.random() * 0.012, col: Math.random() < 0.55 ? '240,64,90' : '201,161,92' });
+    }
+  }
+  function fxStep(now) {
+    fctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    for (var i = parts.length - 1; i >= 0; i--) {
+      var q = parts[i];
+      q.vx *= 0.985; q.vy = q.vy * 0.985 + 0.06;
+      q.x += q.vx; q.y += q.vy; q.life -= q.decay;
+      if (q.life <= 0) { parts.splice(i, 1); continue; }
+      fctx.fillStyle = 'rgba(' + q.col + ',' + q.life.toFixed(2) + ')';
+      if (q.rect) { fctx.fillRect(q.x, q.y, 6, 10); }
+      else { fctx.beginPath(); fctx.arc(q.x, q.y, 2.2, 0, 6.2832); fctx.fill(); }
+    }
+    if (parts.length || now < fxUntil) { requestAnimationFrame(fxStep); }
+    else { fxRunning = false; fx.hidden = true; }
+  }
+  function fireworks() {
+    if (reduced) return;
+    sizeFx(); fx.hidden = false;
+    var w = window.innerWidth, h = window.innerHeight;
+    for (var k = 0; k < 5; k++) {
+      setTimeout(function () { burst(w * (0.2 + Math.random() * 0.6), h * (0.18 + Math.random() * 0.35)); }, k * 380);
+    }
+    fxUntil = performance.now() + 2400;
+    if (!fxRunning) { fxRunning = true; requestAnimationFrame(fxStep); }
+  }
+
+  /* ---------- Share card (saved as a picture) ---------- */
+  function wrapLines(c, text, maxW) {
+    var words = text.split(' '), lines = [], cur = '';
+    words.forEach(function (w) {
+      var t = cur ? cur + ' ' + w : w;
+      if (c.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else { cur = t; }
+    });
+    if (cur) lines.push(cur);
+    return lines;
+  }
+  function spaced(c, text, cx, y, gap) {
+    var widths = [], total = 0, i;
+    for (i = 0; i < text.length; i++) { widths[i] = c.measureText(text.charAt(i)).width; total += widths[i] + gap; }
+    var x = cx - (total - gap) / 2;
+    c.textAlign = 'left';
+    for (i = 0; i < text.length; i++) { c.fillText(text.charAt(i), x, y); x += widths[i] + gap; }
+  }
+  function drawCard() {
+    var W = 1080, H = 1350, cv2 = document.createElement('canvas');
+    cv2.width = W; cv2.height = H;
+    var g = cv2.getContext('2d');
+    var DISP = '"Cormorant Garamond", "Times New Roman", serif';
+    var BODY = '"Be Vietnam Pro", system-ui, sans-serif';
+
+    var bg = g.createRadialGradient(W / 2, H * 0.38, 60, W / 2, H * 0.38, H * 0.85);
+    bg.addColorStop(0, '#3a0b1a'); bg.addColorStop(0.55, '#1a0710'); bg.addColorStop(1, '#0b0508');
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+
+    // constellation behind the text
+    var sc = 1.5, ox = 420, oy = 600;
+    g.strokeStyle = 'rgba(201,161,92,0.35)'; g.lineWidth = 2;
+    LINES.forEach(function (l) {
+      var a = STARS[l[0]], b = STARS[l[1]];
+      g.beginPath(); g.moveTo(ox + a[0] * sc, oy + a[1] * sc); g.lineTo(ox + b[0] * sc, oy + b[1] * sc); g.stroke();
+    });
+    STARS.forEach(function (st) {
+      var x = ox + st[0] * sc, y = oy + st[1] * sc;
+      if (st[3]) {
+        var gl = g.createRadialGradient(x, y, 0, x, y, 60);
+        gl.addColorStop(0, 'rgba(240,64,90,0.85)'); gl.addColorStop(1, 'rgba(240,64,90,0)');
+        g.fillStyle = gl; g.beginPath(); g.arc(x, y, 60, 0, 6.2832); g.fill();
+      }
+      g.fillStyle = st[3] ? '#f0405a' : 'rgba(239,220,210,0.7)';
+      g.beginPath(); g.arc(x, y, st[3] ? 11 : 5, 0, 6.2832); g.fill();
+    });
+
+    g.textBaseline = 'alphabetic';
+    g.fillStyle = '#efdcd2'; g.font = '700 84px ' + DISP;
+    spaced(g, 'THIÊN YẾT', W / 2, 160, 14);
+    g.fillStyle = '#c9a15c'; g.font = '500 28px ' + BODY;
+    spaced(g, '23.10 - 21.11', W / 2, 218, 6);
+    g.strokeStyle = 'rgba(201,161,92,0.45)'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(340, 262); g.lineTo(740, 262); g.stroke();
+
+    g.fillStyle = '#ab9298'; g.font = '500 26px ' + BODY;
+    spaced(g, 'NGƯỜI CHƠI', W / 2, 372, 6);
+    var fs = 84, nm = saved.name;
+    g.font = '700 ' + fs + 'px ' + DISP;
+    while (g.measureText(nm).width > 900 && fs > 36) { fs -= 4; g.font = '700 ' + fs + 'px ' + DISP; }
+    g.fillStyle = '#efdcd2'; g.textAlign = 'center';
+    g.fillText(nm, W / 2, 462);
+    g.fillStyle = '#ab9298'; g.font = '400 32px ' + BODY;
+    g.fillText('ID ' + saved.id, W / 2, 514);
+
+    g.fillStyle = '#c9a15c'; g.font = '500 26px ' + BODY;
+    spaced(g, 'VẬT PHẨM', W / 2, 650, 6);
+    var prize = ITEMS[saved.idx];
+    var pf = 96;
+    g.font = '700 ' + pf + 'px ' + DISP;
+    var lines = wrapLines(g, prize, 880);
+    while (lines.length > 3 && pf > 56) { pf -= 6; g.font = '700 ' + pf + 'px ' + DISP; lines = wrapLines(g, prize, 880); }
+    g.fillStyle = '#f0405a'; g.textAlign = 'center';
+    lines.forEach(function (ln, i) { g.fillText(ln, W / 2, 750 + i * (pf * 1.12)); });
+
+    g.fillStyle = '#ab9298'; g.font = '400 28px ' + BODY; g.textAlign = 'center';
+    if (saved.time) g.fillText('Quay lúc ' + saved.time, W / 2, H - 120);
+    g.fillStyle = '#c9a15c'; g.font = '500 26px ' + BODY;
+    spaced(g, 'ANTARES', W / 2, H - 66, 8);
+    return cv2;
+  }
+  function downloadBlob(blob, fname) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = fname || 'thien-yet-ket-qua.png';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+  }
+  function saveCard(btn) {
+    if (!saved || typeof saved.idx !== 'number') return;
+    var label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Đang tạo...';
+    var ready = (document.fonts && document.fonts.load)
+      ? Promise.all([document.fonts.load('700 80px "Cormorant Garamond"'), document.fonts.load('400 30px "Be Vietnam Pro"')]).catch(function () {})
+      : Promise.resolve();
+    ready.then(function () {
+      drawCard().toBlob(function (blob) {
+        btn.disabled = false; btn.textContent = label;
+        if (!blob) return;
+        var file = null;
+        try { file = new File([blob], 'thien-yet-ket-qua.png', { type: 'image/png' }); } catch (err) { /* old browser */ }
+        if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: 'Thiên Yết' }).catch(function (err) {
+            if (!err || err.name !== 'AbortError') downloadBlob(blob);
+          });
+        } else {
+          downloadBlob(blob);
+        }
+      }, 'image/png');
+    });
+  }
+
+  /* ---------- Back to a fresh wheel, and logout ---------- */
+  function resetWheelUI() {
+    done = false; winIdx = null; spinning = false; rot = 0;
+    spinBtn.disabled = false; spinBtn.textContent = 'QUAY'; spinBtn.removeAttribute('aria-label');
+    var res = $('result');
+    res.textContent = '';
+    var lbl = document.createElement('p'); lbl.className = 'lbl'; lbl.textContent = 'Vật phẩm của bạn';
+    var hint = document.createElement('p'); hint.className = 'hint'; hint.textContent = 'Bấm QUAY ở tâm vòng để quay.';
+    res.appendChild(lbl); res.appendChild(hint);
+  }
+
+  function logout() {
+    if (spinning) return;
+    if (!panel.hidden) closePanel();
+    if (!inviteEl.hidden) closeInvite();
+    saved = null; setSession(null);
+    syncPoll(); paintExtra(); closeGrant();
+    app.hidden = true;
+    if (calmButton) calmButton.hidden = true;
+    uidEl.value = ''; nameEl.value = ''; nameEl.readOnly = false; autoFilled = false;
+    ghint.textContent = ''; gmsg.textContent = '';
+    resetWheelUI();
+    gate.hidden = false; gate.classList.remove('leaving');
+    window.scrollTo(0, 0);
+    uidEl.focus();
+  }
+  $('logout').addEventListener('click', logout);
+
+  /* ---------- Panel open / close ---------- */
+  function openPanel(btn) {
+    opener = btn;
+    panel.hidden = false;
+    document.body.style.overflow = 'hidden';
+    sizeWheel();
+    startLoop();
+    $('panel-close').focus();
+  }
+  function closePanel() {
+    if (spinning) return;
+    panel.hidden = true;
+    document.body.style.overflow = '';
+    stopLoop();
+    if (opener) opener.focus();
+  }
+  $('open-wheel').addEventListener('click', function (e) { openPanel(e.currentTarget); });
+  $('open-wheel-2').addEventListener('click', function (e) { openPanel(e.currentTarget); });
+  $('panel-close').addEventListener('click', closePanel);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !panel.hidden) closePanel(); });
+  var lastPW = window.innerWidth;
+  window.addEventListener('resize', function () {
+    if (panel.hidden) return;
+    if (window.innerWidth === lastPW) return;
+    lastPW = window.innerWidth; sizeWheel();
+  });
+
+
+  /* ---------- Birthday: countdown, candles, wishes ---------- */
+  function confetti() {
+    if (reduced) return;
+    sizeFx(); fx.hidden = false;
+    var w = window.innerWidth, cols = ['240,64,90', '201,161,92', '239,220,210', '255,140,66', '120,200,255'];
+    for (var i = 0; i < 110; i++) {
+      parts.push({ x: Math.random() * w, y: -10 - Math.random() * 60, vx: (Math.random() - 0.5) * 3, vy: Math.random() * 2,
+        life: 1, decay: 0.004 + Math.random() * 0.004, col: cols[i % cols.length], rect: true });
+    }
+    fxUntil = performance.now() + 2600;
+    if (!fxRunning) { fxRunning = true; requestAnimationFrame(fxStep); }
+  }
+  // Happy Birthday, in C major: [frequency, beats]
+  var TUNE = [[392, 0.75], [392, 0.25], [440, 1], [392, 1], [523.25, 1], [493.88, 2],
+    [392, 0.75], [392, 0.25], [440, 1], [392, 1], [587.33, 1], [523.25, 2],
+    [392, 0.75], [392, 0.25], [783.99, 1], [659.25, 1], [523.25, 1], [493.88, 1], [440, 1],
+    [698.46, 0.75], [698.46, 0.25], [659.25, 1], [523.25, 1], [587.33, 1], [523.25, 2]];
+  function birthdayTune() {
+    unlockAudio();
+    var t = 0.05, beat = 0.42;
+    TUNE.forEach(function (n) { beep(n[0], n[1] * beat * 0.9, 'triangle', 0.09, t); t += n[1] * beat; });
+  }
+
+  function paintCountdown() {
+    var el = $('bday-text'), m = /^(\d{2})-(\d{2})$/.exec(BIRTHDAY || '');
+    var mo = m ? Number(m[1]) : 0, da = m ? Number(m[2]) : 0;
+    if (!m || mo < 1 || mo > 12 || da < 1 || da > 31) { el.hidden = true; return; }
+    var now = new Date(), y = now.getFullYear();
+    var today = new Date(y, now.getMonth(), now.getDate()), b = new Date(y, mo - 1, da);
+    if (b < today) b = new Date(y + 1, mo - 1, da);
+    var days = Math.round((b - today) / 86400000), who = OWNER_NAME ? ' của ' + OWNER_NAME : '';
+    el.textContent = '';
+    if (days === 0) {
+      el.textContent = 'Hôm nay là sinh nhật' + who + '!';
+    } else {
+      var n = document.createElement('span'); n.className = 'big-n'; n.textContent = String(days);
+      el.appendChild(document.createTextNode('Còn '));
+      el.appendChild(n);
+      el.appendChild(document.createTextNode(' ngày nữa đến sinh nhật' + who));
+    }
+    el.hidden = false;
+  }
+
+  // Candles
+  var cakeEl = $('cake'), candlesEl = $('candles'), cakeMsg = $('cake-msg'), cakeClose = $('cake-close'), micBtn = $('cake-mic');
+  var CANDLES = 5, cakeDone = false, cakeOpener = null;
+  var mic = { stream: null, ctx: null, raf: 0, loud: 0 };
+  function buildCandles() {
+    candlesEl.textContent = '';
+    for (var i = 0; i < CANDLES; i++) {
+      (function (i) {
+        var x = 90 + i * 20;
+        var g = document.createElementNS(NS, 'g');
+        g.setAttribute('class', 'candle'); g.setAttribute('tabindex', '0'); g.setAttribute('role', 'button');
+        g.setAttribute('aria-label', 'Nến ' + (i + 1) + ', chạm để thổi tắt');
+        var hit = document.createElementNS(NS, 'rect');
+        hit.setAttribute('class', 'hit'); hit.setAttribute('x', x - 11); hit.setAttribute('y', 22); hit.setAttribute('width', 22); hit.setAttribute('height', 72);
+        hit.setAttribute('fill', 'transparent'); hit.setAttribute('rx', 6);
+        var body = document.createElementNS(NS, 'rect');
+        body.setAttribute('x', x - 4); body.setAttribute('y', 58); body.setAttribute('width', 8); body.setAttribute('height', 34); body.setAttribute('rx', 2);
+        body.setAttribute('fill', i % 2 ? '#c9a15c' : '#efdcd2');
+        var flame = document.createElementNS(NS, 'path');
+        flame.setAttribute('class', 'flame');
+        flame.setAttribute('d', 'M' + x + ' 34Q' + (x + 8) + ' 46 ' + x + ' 56Q' + (x - 8) + ' 46 ' + x + ' 34Z');
+        flame.setAttribute('fill', '#ffb347');
+        g.appendChild(hit); g.appendChild(body); g.appendChild(flame);
+        function snuff() { snuffCandle(g); }
+        g.addEventListener('click', snuff);
+        g.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); snuff(); } });
+        candlesEl.appendChild(g);
+      })(i);
+    }
+  }
+  function lit() { return candlesEl.querySelectorAll('.candle:not(.out)'); }
+  function snuffCandle(g) {
+    if (cakeDone || g.classList.contains('out')) return;
+    unlockAudio();
+    g.classList.add('out');
+    g.setAttribute('aria-label', 'Nến đã tắt');
+    beep(300, 0.12, 'sine', 0.05);
+    var left = lit().length;
+    if (left === 0) { blownAll(); return; }
+    cakeMsg.textContent = 'Còn ' + left + ' ngọn nến.';
+  }
+  function snuffNext() { var l = lit(); if (l.length) snuffCandle(l[0]); }
+  function stopMic() {
+    if (mic.raf) cancelAnimationFrame(mic.raf);
+    mic.raf = 0; mic.loud = 0;
+    if (mic.stream) { try { mic.stream.getTracks().forEach(function (t) { t.stop(); }); } catch (err) { /* ignore */ } }
+    if (mic.ctx) { try { mic.ctx.close(); } catch (err) { /* ignore */ } }
+    mic.stream = null; mic.ctx = null;
+    micBtn.textContent = 'Thổi bằng micro';
+  }
+  function startMic() {
+    if (mic.stream) { stopMic(); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !AC) {
+      cakeMsg.textContent = 'Máy này không dùng được micro. Hãy chạm vào từng ngọn nến.'; return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      if (cakeEl.hidden || cakeDone) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
+      mic.stream = stream; mic.ctx = new AC();
+      var an = mic.ctx.createAnalyser(); an.fftSize = 1024;
+      mic.ctx.createMediaStreamSource(stream).connect(an);
+      var buf = new Uint8Array(an.fftSize);
+      micBtn.textContent = 'Tắt micro';
+      cakeMsg.textContent = 'Đang nghe... hãy thổi mạnh vào micro.';
+      (function loop() {
+        an.getByteTimeDomainData(buf);
+        var sum = 0, i;
+        for (i = 0; i < buf.length; i++) { var v = (buf[i] - 128) / 128; sum += v * v; }
+        if (Math.sqrt(sum / buf.length) > 0.16) { mic.loud++; if (mic.loud >= 8) { mic.loud = 0; snuffNext(); } }
+        else mic.loud = Math.max(0, mic.loud - 1);
+        mic.raf = requestAnimationFrame(loop);
+      })();
+    }).catch(function () {
+      cakeMsg.textContent = 'Không bật được micro. Hãy chạm vào từng ngọn nến.';
+    });
+  }
+  function blownAll() {
+    cakeDone = true; stopMic();
+    micBtn.hidden = true;
+    $('cake-title').textContent = 'Chúc mừng sinh nhật' + (OWNER_NAME ? ' ' + OWNER_NAME : '') + '!';
+    cakeMsg.textContent = 'Điều ước đã được gửi lên sao Antares.';
+    cakeClose.textContent = 'Tiếp tục';
+    if (saved) { saved.blown = true; saveState(); }
+    confetti(); fireworks(); birthdayTune();
+    cakeClose.focus();
+  }
+  function openCake(opener) {
+    cakeOpener = opener || null; cakeDone = false;
+    buildCandles();
+    $('cake-title').textContent = 'Thổi nến nào!';
+    cakeMsg.textContent = 'Chạm vào từng ngọn nến, hoặc thổi vào micro.';
+    micBtn.hidden = false; micBtn.textContent = 'Thổi bằng micro';
+    cakeClose.textContent = 'Bỏ qua';
+    cakeEl.hidden = false;
+    document.body.style.overflow = 'hidden';
+    cakeClose.focus();
+  }
+  function closeCake() {
+    stopMic();
+    if (saved && !saved.blown) { saved.blown = true; saveState(); }
+    cakeEl.hidden = true;
+    if (panel.hidden) document.body.style.overflow = '';
+    if (cakeOpener && cakeOpener.focus) cakeOpener.focus();
+    cakeOpener = null;
+  }
+  cakeClose.addEventListener('click', closeCake);
+  micBtn.addEventListener('click', function () { unlockAudio(); startMic(); });
+  $('open-cake').addEventListener('click', function (e) { openCake(e.currentTarget); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !cakeEl.hidden) closeCake(); });
+
+  // Lời chúc cá nhân: máy chủ chỉ trả về lời chúc khớp ID đang đăng nhập.
+  var wishForm = $('wish-form'), wishText = $('wish-text'), wishMsg = $('wish-msg'), wishList = $('wish-list'), wishEmpty = $('wish-empty'), wishSend = $('wish-send');
+  var wishSending = false, wishLoading = false;
+  function paintWishForm() {
+    var sent = !!(saved && saved.wished);
+    wishForm.hidden = sent;
+    if (!saved) { wishMsg.textContent = ''; wishEmpty.textContent = 'Đăng nhập để xem trạng thái lời chúc của riêng bạn.'; return; }
+    if (!sent) wishMsg.textContent = '';
+    if (!sent) { wishText.value = ''; $('wish-count').textContent = '0/140'; }
+  }
+  function showMyWish(w) {
+    var card = $('my-wish-card'), status = $('my-wish-status');
+    wishList.textContent = '';
+    if (!w || !w.exists) {
+      card.hidden = true;
+      wishEmpty.className = 'note';
+      wishEmpty.textContent = 'Bạn chưa gửi lời chúc nào. Hãy để lại một lời nhắn thật đặc biệt nhé!';
+      if (saved) { saved.wished = false; saveState(); }
+      return;
+    }
+    card.hidden = false;
+    $('my-wish-text').textContent = String(w.text || '');
+    $('my-wish-meta').textContent = '— ' + String(w.name || (saved && saved.name) || 'Bạn') + (w.time ? ' · Gửi lúc ' + String(w.time) : '');
+    status.className = 'wish-status ' + (w.approved ? 'approved' : 'pending');
+    status.textContent = w.approved ? '✦ ĐÃ ĐƯỢC DUYỆT' : '◷ ĐANG CHỜ DUYỆT';
+    wishEmpty.className = 'note';
+    wishEmpty.textContent = w.approved ? 'Đây là lời chúc riêng của tài khoản này.' : 'Lời chúc đang chờ quản trị viên duyệt. Bạn có thể quay lại kiểm tra sau.';
+    if (saved && !saved.wished) { saved.wished = true; saveState(); }
+  }
+  function loadWishes() {
+    if (!saved) { showMyWish(null); return Promise.resolve(); }
+    if (wishLoading) return Promise.resolve();
+    wishLoading = true;
+    wishEmpty.textContent = 'Đang kiểm tra trạng thái lời chúc của bạn…';
+    return callServer({ action: 'my_wish', id: saved.id }).then(function (d) {
+      if (!d || !d.ok || !d.wish) throw new Error((d && d.error) || 'bad');
+      showMyWish(d.wish);
+      if (d.wish.exists) { saved.wished = true; saveState(); paintWishForm(); }
+      else { saved.wished = false; saveState(); paintWishForm(); }
+    }).catch(function () {
+      wishEmpty.textContent = 'Chưa kiểm tra được trạng thái. Hãy bấm “Kiểm tra duyệt” để thử lại.';
+    }).then(function () { wishLoading = false; });
+  }
+  $('wish-refresh').addEventListener('click', function () { loadWishes(); });
+  $('wish-copy').addEventListener('click', function () {
+    var value = $('my-wish-text').textContent || '';
+    if (!value) return;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(value).then(function () { wishMsg.textContent = 'Đã sao chép lời chúc của bạn.'; }).catch(function () { wishMsg.textContent = 'Không sao chép tự động được; hãy chọn và sao chép nội dung.'; });
+    } else { wishMsg.textContent = 'Trình duyệt chưa hỗ trợ sao chép tự động; hãy chọn và sao chép nội dung.'; }
+  });
+  wishText.addEventListener('input', function () { $('wish-count').textContent = wishText.value.length + '/140'; });
+  wishForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (wishSending || !saved) return;
+    var text = wishText.value.replace(/\s+/g, ' ').trim();
+    if (!text) { wishMsg.textContent = 'Hãy viết lời chúc trước khi gửi.'; wishText.focus(); return; }
+    wishSending = true; wishSend.disabled = true; wishMsg.textContent = 'Đang gửi lời chúc đến Antares…';
+    var who = saved;
+    callServer({ action: 'wish', id: who.id, name: who.name, text: text }).then(function (d) {
+      if (!d || !d.ok) { var er = new Error('server'); er.code = d && d.error; throw er; }
+      who.wished = true; if (saved === who) saveState(); else { accounts[keyOf(who.id)] = who; writeAccounts(); }
+      wishMsg.textContent = '✦ Đã nhận lời chúc! Nội dung sẽ chỉ xuất hiện trong tài khoản này sau khi được duyệt.';
+      wishForm.hidden = true;
+      return loadWishes();
+    }).catch(function (err) {
+      wishMsg.textContent = 'Chưa gửi được. Hãy thử lại. Mã lỗi: ' + ((err && err.code) || 'unknown');
+    }).then(function () { wishSending = false; wishSend.disabled = false; });
+  });
+
+  /* ---------- Thiệp mời: mẫu thiệp, mã thiệp, xác nhận tham dự, lịch, chia sẻ ---------- */
+  var THEMES = [
+    { name: 'Antares',     bg: ['#3a0b1a', '#1a0710', '#0b0508'], accent: '#f0405a', gold: '#c9a15c', text: '#efdcd2', mute: '#ab9298' },
+    { name: 'Obsidian',    bg: ['#202026', '#0f0f13', '#050507'], accent: '#e8c675', gold: '#e8c675', text: '#f3efe6', mute: '#9a98a0' },
+    { name: 'Huyết thạch', bg: ['#52111c', '#2c0911', '#12040a'], accent: '#ff7a59', gold: '#e0a96d', text: '#ffe9de', mute: '#c79a96' },
+    { name: 'Đêm sao',     bg: ['#12295a', '#0a1634', '#040815'], accent: '#7fd6ff', gold: '#d8c7ff', text: '#e8f0ff', mute: '#8fa3c7' }
+  ];
+  var MAX_PLUS = 5, RSVP_TXT = { yes: 'Chắc chắn đến', maybe: 'Có thể đến', no: 'Chưa đến được' };
+
+  function hash32(str) {
+    var h = 2166136261;
+    for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+    return h >>> 0;
+  }
+  function ticketCode(id) { return 'TY-' + ('0000' + (hash32(keyOf(id)) % 10000)).slice(-4); }
+  function rgba(hex, a) {
+    var n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  function themeOf(acc) { return THEMES[acc && typeof acc.theme === 'number' ? acc.theme : 0] || THEMES[0]; }
+
+  function drawInvite() {
+    var W = 1080, H = 1350, c = document.createElement('canvas'), T = themeOf(saved);
+    c.width = W; c.height = H;
+    var g = c.getContext('2d');
+    var DISP = '"Cormorant Garamond", "Times New Roman", serif', BODY = '"Be Vietnam Pro", system-ui, sans-serif';
+    var bg = g.createRadialGradient(W / 2, H * 0.4, 60, W / 2, H * 0.4, H * 0.85);
+    bg.addColorStop(0, T.bg[0]); bg.addColorStop(0.55, T.bg[1]); bg.addColorStop(1, T.bg[2]);
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+
+    var sc = 0.95, ox = 640, oy = 720;
+    g.strokeStyle = rgba(T.gold, 0.22); g.lineWidth = 2;
+    LINES.forEach(function (l) {
+      var a = STARS[l[0]], b = STARS[l[1]];
+      g.beginPath(); g.moveTo(ox + a[0] * sc, oy + a[1] * sc); g.lineTo(ox + b[0] * sc, oy + b[1] * sc); g.stroke();
+    });
+    STARS.forEach(function (st) {
+      g.fillStyle = st[3] ? T.accent : rgba(T.text, 0.55);
+      g.beginPath(); g.arc(ox + st[0] * sc, oy + st[1] * sc, st[3] ? 10 : 4, 0, 6.2832); g.fill();
+    });
+
+    g.strokeStyle = rgba(T.gold, 0.7); g.lineWidth = 3; g.strokeRect(50, 50, W - 100, H - 100);
+    g.strokeStyle = rgba(T.gold, 0.3); g.lineWidth = 1.5; g.strokeRect(68, 68, W - 136, H - 136);
+
+    g.textBaseline = 'alphabetic'; g.textAlign = 'center';
+    g.fillStyle = T.gold; g.font = '500 28px ' + BODY;
+    spaced(g, 'THIÊN YẾT  ·  23.10 - 21.11', W / 2, 170, 6);
+    g.fillStyle = T.text; g.font = '700 110px ' + DISP;
+    spaced(g, 'THIỆP MỜI', W / 2, 330, 12);
+    g.strokeStyle = rgba(T.gold, 0.5); g.lineWidth = 2;
+    g.beginPath(); g.moveTo(380, 376); g.lineTo(700, 376); g.stroke();
+
+    g.textAlign = 'center';
+    g.fillStyle = T.mute; g.font = 'italic 500 44px ' + DISP;
+    g.fillText('Thân mời', W / 2, 480);
+    var fs = 120, nm = saved.name;
+    g.font = '700 ' + fs + 'px ' + DISP;
+    while (g.measureText(nm).width > 880 && fs > 40) { fs -= 4; g.font = '700 ' + fs + 'px ' + DISP; }
+    g.fillStyle = T.accent; g.textAlign = 'center';
+    g.fillText(nm, W / 2, 610);
+
+    var y = 720;
+    g.fillStyle = T.text; g.font = '400 36px ' + BODY;
+    var what = 'đến dự tiệc sinh nhật' + (OWNER_NAME ? ' của ' + OWNER_NAME : '');
+    wrapLines(g, what, 820).forEach(function (ln) { g.fillText(ln, W / 2, y); y += 56; });
+
+    y += 24;
+    g.fillStyle = T.gold; g.font = '500 34px ' + BODY;
+    var m = /^(\d{2})-(\d{2})$/.exec(BIRTHDAY || '');
+    if (m) { g.fillText('Ngày ' + m[2] + '/' + m[1], W / 2, y); y += 54; }
+    if (INVITE_TIME) { g.fillText('Lúc ' + INVITE_TIME, W / 2, y); y += 54; }
+    if (INVITE_PLACE) { wrapLines(g, 'Tại ' + INVITE_PLACE, 800).forEach(function (ln) { g.fillText(ln, W / 2, y); y += 54; }); }
+    var plus = saved.rsvp && saved.rsvp.status === 'yes' ? saved.rsvp.plus : 0;
+    if (plus > 0) { g.fillStyle = T.mute; g.font = '400 30px ' + BODY; g.fillText('Đi cùng ' + plus + ' người', W / 2, y + 6); }
+
+    g.fillStyle = T.mute; g.font = 'italic 400 38px ' + DISP;
+    g.fillText('Rất mong được đón bạn dưới ánh sao Antares', W / 2, H - 245);
+
+    // mã vạch trang trí, mỗi thiệp một dãy riêng theo ID
+    var seed = hash32(keyOf(saved.id) + '|bar'), bars = [], total = 0, i;
+    while (total < 340) {
+      seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+      var bw = 2 + ((seed >>> 24) % 5);
+      bars.push(bw); total += bw + 4;
+    }
+    var bx = W / 2 - (total - 4) / 2;
+    g.fillStyle = rgba(T.gold, 0.85);
+    for (i = 0; i < bars.length; i++) { g.fillRect(bx, H - 212, bars[i], 48); bx += bars[i] + 4; }
+    g.fillStyle = T.gold; g.font = '500 26px ' + BODY;
+    spaced(g, 'THIỆP SỐ ' + ticketCode(saved.id), W / 2, H - 118, 8);
+
+    if (saved.rsvp && saved.rsvp.status === 'yes') {
+      g.save(); g.translate(W - 150, 215); g.rotate(-0.21);
+      g.strokeStyle = T.accent; g.fillStyle = T.accent; g.globalAlpha = 0.85;
+      g.lineWidth = 5; g.beginPath(); g.arc(0, 0, 66, 0, 6.2832); g.stroke();
+      g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 57, 0, 6.2832); g.stroke();
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.font = '700 30px ' + BODY; g.fillText('SẼ ĐẾN', 0, -8);
+      g.font = '500 15px ' + BODY; g.fillText('ĐÃ XÁC NHẬN', 0, 22);
+      g.restore();
+    }
+    return c;
+  }
+  var inviteEl = $('invite'), inviteCv = $('invite-cv'), inviteOpener = null;
+  function fontsReady() {
+    return (document.fonts && document.fonts.load)
+      ? Promise.all([document.fonts.load('700 80px "Cormorant Garamond"'), document.fonts.load('400 30px "Be Vietnam Pro"'), document.fonts.load('italic 500 40px "Cormorant Garamond"')]).catch(function () {})
+      : Promise.resolve();
+  }
+  function renderInvite() {
+    if (inviteEl.hidden || !saved) return;
+    var who = saved;
+    fontsReady().then(function () {
+      if (inviteEl.hidden || saved !== who) return;
+      var ic = inviteCv.getContext('2d');
+      ic.clearRect(0, 0, 1080, 1350);
+      ic.drawImage(drawInvite(), 0, 0);
+    });
+  }
+
+  // Mẫu thiệp
+  var chipsEl = $('theme-chips');
+  THEMES.forEach(function (t, i) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'chip'; b.setAttribute('role', 'radio'); b.textContent = t.name;
+    b.addEventListener('click', function () {
+      if (!saved) return;
+      saved.theme = i; saveState(); paintThemes(); renderInvite();
+    });
+    chipsEl.appendChild(b);
+  });
+  function paintThemes() {
+    var cur = THEMES.indexOf(themeOf(saved));
+    Array.prototype.forEach.call(chipsEl.children, function (b, i) { b.setAttribute('aria-checked', i === cur ? 'true' : 'false'); });
+  }
+
+  // Xác nhận tham dự
+  var rsvpState = { status: '', plus: 0 };
+  var rsvpNote = $('rsvp-note'), rsvpMsg = $('rsvp-msg'), rsvpSend = $('rsvp-send'), rsvpSending = false;
+  function syncRsvpUi() {
+    Array.prototype.forEach.call($('rsvp-opts').children, function (b) {
+      b.setAttribute('aria-checked', b.getAttribute('data-v') === rsvpState.status ? 'true' : 'false');
+    });
+    $('rsvp-plus-row').hidden = !(rsvpState.status === 'yes' || rsvpState.status === 'maybe');
+    $('rsvp-plus-out').textContent = rsvpState.plus;
+    $('rsvp-minus').disabled = rsvpState.plus <= 0;
+    $('rsvp-plus-btn').disabled = rsvpState.plus >= MAX_PLUS;
+  }
+  function paintRsvp() {
+    var r = saved && saved.rsvp;
+    rsvpState.status = r ? r.status : ''; rsvpState.plus = r ? r.plus : 0;
+    rsvpNote.value = r ? r.note : '';
+    rsvpSend.textContent = r ? 'Cập nhật xác nhận' : 'Gửi xác nhận';
+    rsvpMsg.textContent = r ? 'Bạn đã xác nhận: ' + (RSVP_TXT[r.status] || '') + (r.plus ? ', đi cùng ' + r.plus + ' người' : '') + '. Bạn có thể đổi lại bất cứ lúc nào.' : '';
+    syncRsvpUi();
+  }
+  $('rsvp-opts').addEventListener('click', function (e) {
+    var v = e.target && e.target.getAttribute && e.target.getAttribute('data-v');
+    if (!v) return;
+    rsvpState.status = v; if (v === 'no') rsvpState.plus = 0;
+    rsvpMsg.textContent = ''; syncRsvpUi();
+  });
+  $('rsvp-minus').addEventListener('click', function () { if (rsvpState.plus > 0) { rsvpState.plus--; syncRsvpUi(); } });
+  $('rsvp-plus-btn').addEventListener('click', function () { if (rsvpState.plus < MAX_PLUS) { rsvpState.plus++; syncRsvpUi(); } });
+  $('rsvp-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (rsvpSending || !saved) return;
+    if (!rsvpState.status) { rsvpMsg.textContent = 'Hãy chọn một lựa chọn trước khi gửi.'; return; }
+    var who = saved, status = rsvpState.status, plus = status === 'no' ? 0 : rsvpState.plus;
+    var note = rsvpNote.value.replace(/\s+/g, ' ').trim();
+    rsvpSending = true; rsvpSend.disabled = true; rsvpMsg.textContent = 'Đang gửi...';
+    callServer({ action: 'rsvp', id: who.id, name: who.name, status: status, plus: plus, note: note }).then(function (d) {
+      if (!d || !d.ok) { var er = new Error('server'); er.code = d && d.error; throw er; }
+      who.rsvp = { status: status, plus: plus, note: note };
+      if (saved === who) saveState(); else { accounts[keyOf(who.id)] = who; writeAccounts(); }
+      if (saved === who) {
+        paintRsvp(); renderInvite(); loadInfo();
+        rsvpMsg.textContent = status === 'yes' ? 'Đã ghi nhận. Hẹn gặp bạn ở tiệc!' : 'Đã ghi nhận xác nhận của bạn. Cảm ơn bạn!';
+      }
+    }).catch(function (err) {
+      rsvpMsg.textContent = 'Chưa gửi được. Hãy thử lại. Mã lỗi: ' + ((err && err.code) || 'unknown');
+    }).then(function () { rsvpSending = false; rsvpSend.disabled = false; });
+  });
+
+  // Thông báo của chủ trang và số người đã xác nhận
+  var annEl = $('announce'), ANN_KEY = 'thienyet.antares.ann';
+  function loadInfo() {
+    callServer({ action: 'info' }).then(function (d) {
+      if (!d || !d.ok) return;
+      var n = Number(d.going) || 0, txt = n > 0 ? 'Đã có ' + n + ' người xác nhận sẽ đến.' : '';
+      $('going-note').textContent = txt; $('going-note').hidden = !n;
+      $('rsvp-count').textContent = txt; $('rsvp-count').hidden = !n;
+      var seen = '';
+      try { seen = localStorage.getItem(ANN_KEY) || ''; } catch (err) { /* ignore */ }
+      if (d.announce && String(d.announceId) !== seen) {
+        $('announce-text').textContent = d.announce; annEl.hidden = false; annEl.setAttribute('data-id', String(d.announceId));
+      } else { annEl.hidden = true; }
+    }).catch(function () { /* không có mạng: bỏ qua */ });
+  }
+  $('announce-x').addEventListener('click', function () {
+    try { localStorage.setItem(ANN_KEY, annEl.getAttribute('data-id') || ''); } catch (err) { /* ignore */ }
+    annEl.hidden = true;
+  });
+
+  function openInvite(opener) {
+    if (!saved) return;
+    inviteOpener = opener || null;
+    var who = saved;
+    inviteCv.setAttribute('aria-label', 'Thiệp mời gửi ' + who.name + ', mã ' + ticketCode(who.id));
+    $('invite-msg').textContent = 'Đang vẽ thiệp...';
+    paintThemes(); paintRsvp();
+    inviteEl.hidden = false;
+    document.body.style.overflow = 'hidden';
+    inviteEl.scrollTop = 0;
+    $('invite-close').focus();
+    renderInvite();
+    fontsReady().then(function () {
+      if (!inviteEl.hidden && saved === who) $('invite-msg').textContent = 'Thiệp dành riêng cho ' + who.name + ' · ' + ticketCode(who.id) + '.';
+    });
+  }
+  function closeInvite() {
+    inviteEl.hidden = true;
+    if (panel.hidden && cakeEl.hidden && grantEl.hidden) document.body.style.overflow = '';
+    if (inviteOpener && inviteOpener.focus) inviteOpener.focus();
+    inviteOpener = null;
+  }
+
+  // Lưu ảnh: ưu tiên bảng chia sẻ của điện thoại, không có thì tải xuống
+  function sendImage(makeCanvas, fname, title, btn) {
+    if (!saved) return;
+    var label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Đang tạo...';
+    fontsReady().then(function () {
+      makeCanvas().toBlob(function (blob) {
+        btn.disabled = false; btn.textContent = label;
+        if (!blob) return;
+        var file = null;
+        try { file = new File([blob], fname, { type: 'image/png' }); } catch (err) { /* old browser */ }
+        if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+          navigator.share({ files: [file], title: title }).catch(function (err) {
+            if (!err || err.name !== 'AbortError') downloadBlob(blob, fname);
+          });
+        } else {
+          downloadBlob(blob, fname);
+        }
+      }, 'image/png');
+    });
+  }
+
+  // Thêm vào lịch (.ics): có giờ thì đặt 3 tiếng, không có giờ thì cả ngày; nhắc trước 1 ngày
+  function addToCalendar() {
+    var msg = $('invite-msg'), m = /^(\d{2})-(\d{2})$/.exec(BIRTHDAY || '');
+    if (!m || !saved) { msg.textContent = 'Chưa có ngày sinh nhật để thêm vào lịch.'; return; }
+    function p2(n) { return (n < 10 ? '0' : '') + n; }
+    function ymd(d) { return '' + d.getFullYear() + p2(d.getMonth() + 1) + p2(d.getDate()); }
+    function ymdhm(d) { return ymd(d) + 'T' + p2(d.getHours()) + p2(d.getMinutes()) + '00'; }
+    function esc(t) { return String(t).replace(/[\\;,]/g, '\\$&').replace(/\n/g, '\\n'); }
+    var now = new Date(), y = now.getFullYear(), mo = Number(m[1]), da = Number(m[2]);
+    if (new Date(y, mo - 1, da, 23, 59, 59) < now) y++;
+    var tm = /^(\d{1,2}):(\d{2})$/.exec(INVITE_TIME || '');
+    var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Thien Yet//Sinh nhat//VI', 'CALSCALE:GREGORIAN', 'BEGIN:VEVENT',
+      'UID:' + ticketCode(saved.id) + '-' + y + '@thienyet',
+      'DTSTAMP:' + now.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '')];
+    if (tm) {
+      var st = new Date(y, mo - 1, da, Number(tm[1]), Number(tm[2])), en = new Date(y, mo - 1, da, Number(tm[1]) + 3, Number(tm[2]));
+      lines.push('DTSTART:' + ymdhm(st), 'DTEND:' + ymdhm(en));
+    } else {
+      lines.push('DTSTART;VALUE=DATE:' + ymd(new Date(y, mo - 1, da)), 'DTEND;VALUE=DATE:' + ymd(new Date(y, mo - 1, da + 1)));
+    }
+    lines.push('SUMMARY:' + esc('Sinh nhật' + (OWNER_NAME ? ' ' + OWNER_NAME : '')));
+    if (INVITE_PLACE) lines.push('LOCATION:' + esc(INVITE_PLACE));
+    lines.push('DESCRIPTION:' + esc('Thiệp mời ' + ticketCode(saved.id)),
+      'BEGIN:VALARM', 'TRIGGER:-P1D', 'ACTION:DISPLAY', 'DESCRIPTION:' + esc('Ngày mai là sinh nhật'), 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR');
+    downloadBlob(new Blob([lines.join('\r\n')], { type: 'text/calendar;charset=utf-8' }), 'sinh-nhat.ics');
+    msg.textContent = 'Đã tạo lịch. Mở file sinh-nhat.ics để thêm vào lịch của bạn.';
+  }
+
+  function copyLink(url) {
+    var msg = $('invite-msg');
+    function ok() { msg.textContent = 'Đã sao chép link. Hãy dán gửi bạn bè.'; }
+    function fail() { msg.textContent = 'Link của trang: ' + url; }
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(url).then(ok, fail); else fail();
+  }
+  function shareInvite() {
+    var url = location.href.split('#')[0];
+    var text = 'Thiệp mời sinh nhật' + (OWNER_NAME ? ' ' + OWNER_NAME : '') + '. Vào xem, quay thưởng và xác nhận tham dự nhé!';
+    if (navigator.share) {
+      navigator.share({ title: 'Thiệp mời', text: text, url: url }).catch(function (err) { if (!err || err.name !== 'AbortError') copyLink(url); });
+    } else { copyLink(url); }
+  }
+
+  $('open-invite').addEventListener('click', function (e) { openInvite(e.currentTarget); });
+  $('open-invite-2').addEventListener('click', function (e) { openInvite(e.currentTarget); });
+  $('invite-close').addEventListener('click', closeInvite);
+  $('invite-save').addEventListener('click', function (e) { sendImage(drawInvite, 'thiep-moi.png', 'Thiệp mời', e.currentTarget); });
+  $('invite-cal').addEventListener('click', addToCalendar);
+  $('invite-share').addEventListener('click', shareInvite);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !inviteEl.hidden && grantEl.hidden) closeInvite(); });
+
+  /* ---------- Bói Thiên Yết hôm nay: ngẫu nhiên theo ID và ngày, không cần máy chủ ---------- */
+  var FORTUNE_MSG = [
+    'Nọc độc hôm nay để dành, nụ cười thì cứ phát miễn phí.',
+    'Antares đang nhìn xuống bạn. Cứ bình tĩnh và làm điều bạn đã định.',
+    'Có người đang nghĩ đến bạn. Đừng để họ chờ tin nhắn quá lâu.',
+    'Hôm nay hợp để im lặng quan sát, rồi ra đòn đúng lúc.',
+    'Một bí mật nhỏ sẽ được giữ kín. Bạn vốn giỏi việc đó mà.',
+    'Đừng ghim chuyện cũ. Nước sâu thì lặng, nhưng không cần lạnh.',
+    'May mắn đến muộn nhưng đến thật. Cứ kiên nhẫn như một con Thiên Yết.',
+    'Hôm nay hãy tự thưởng cho mình một thứ gì đó ngọt ngào.',
+    'Cẩn thận lời nói khi nóng giận, vì nọc độc của bạn rất hiệu quả.',
+    'Một cánh cửa mới sắp mở. Hãy chuẩn bị sẵn chìa khóa.',
+    'Trực giác của bạn hôm nay chuẩn hơn mọi lời khuyên.',
+    'Rủ bạn bè đi ăn một bữa. Năng lượng của bạn sẽ tăng gấp đôi.'
+  ];
+  var FORTUNE_COLORS = [['Đỏ thẫm', '#7d1230'], ['Đen huyền', '#1a1a1f'], ['Vàng đồng', '#c9a15c'], ['Đỏ Antares', '#f0405a'], ['Tím mận', '#5b1a4a'], ['Xanh đêm', '#1c2f5e']];
+  function dateText() {
+    var d = new Date();
+    return ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear();
+  }
+  function fortuneOf(acc) {
+    var seed = hash32(keyOf(acc.id) + '|' + dateText());
+    function next(n) { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return (seed >>> 8) % n; }
+    next(1); next(1);
+    return { lucky: 1 + next(99), color: FORTUNE_COLORS[next(FORTUNE_COLORS.length)], msg: FORTUNE_MSG[next(FORTUNE_MSG.length)],
+             love: 40 + next(61), luck: 40 + next(61), work: 40 + next(61), venom: next(101) };
+  }
+  function fEl(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  var fortuneDay = '';
+  function paintFortune() {
+    if (!saved) return;
+    var f = fortuneOf(saved), card = $('fortune-card');
+    fortuneDay = dateText();
+    card.textContent = '';
+    card.appendChild(fEl('p', 'f-date', 'Hôm nay, ' + fortuneDay));
+    card.appendChild(fEl('p', 'f-msg', f.msg));
+    var row = fEl('div', 'f-row');
+    var a = fEl('div', 'f-box'); a.appendChild(fEl('span', 'f-lbl', 'Số may mắn')); a.appendChild(fEl('b', 'f-big', String(f.lucky)));
+    var b = fEl('div', 'f-box'); b.appendChild(fEl('span', 'f-lbl', 'Màu may mắn'));
+    var sw = fEl('i', 'f-sw'); sw.style.background = f.color[1]; b.appendChild(sw); b.appendChild(fEl('b', '', f.color[0]));
+    row.appendChild(a); row.appendChild(b); card.appendChild(row);
+    [['Tình cảm', f.love], ['May mắn', f.luck], ['Công việc', f.work], ['Độ nọc độc', f.venom]].forEach(function (p) {
+      var m = fEl('div', 'f-meter'), tr = fEl('div', 'f-track'), fill = fEl('span', 'f-fill');
+      fill.style.width = p[1] + '%';
+      tr.setAttribute('role', 'img'); tr.setAttribute('aria-label', p[0] + ' ' + p[1] + ' phần trăm');
+      tr.appendChild(fill);
+      m.appendChild(fEl('span', '', p[0])); m.appendChild(tr); m.appendChild(fEl('span', '', p[1] + '%'));
+      card.appendChild(m);
+    });
+  }
+  function drawFortune() {
+    var W = 1080, H = 1350, c = document.createElement('canvas'), f = fortuneOf(saved), T = THEMES[0];
+    c.width = W; c.height = H;
+    var g = c.getContext('2d');
+    var DISP = '"Cormorant Garamond", "Times New Roman", serif', BODY = '"Be Vietnam Pro", system-ui, sans-serif';
+    var bg = g.createRadialGradient(W / 2, H * 0.35, 60, W / 2, H * 0.35, H * 0.9);
+    bg.addColorStop(0, T.bg[0]); bg.addColorStop(0.55, T.bg[1]); bg.addColorStop(1, T.bg[2]);
+    g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    g.strokeStyle = rgba(T.gold, 0.7); g.lineWidth = 3; g.strokeRect(50, 50, W - 100, H - 100);
+    g.strokeStyle = rgba(T.gold, 0.3); g.lineWidth = 1.5; g.strokeRect(68, 68, W - 136, H - 136);
+    g.textBaseline = 'alphabetic'; g.textAlign = 'center';
+    g.fillStyle = T.gold; g.font = '500 28px ' + BODY; spaced(g, 'BÓI THIÊN YẾT  ·  ' + dateText(), W / 2, 170, 6);
+    g.fillStyle = T.text; g.font = '700 96px ' + DISP; spaced(g, 'HÔM NAY', W / 2, 300, 12);
+    var fs = 84, nm = saved.name;
+    g.font = '700 ' + fs + 'px ' + DISP;
+    while (g.measureText(nm).width > 880 && fs > 40) { fs -= 4; g.font = '700 ' + fs + 'px ' + DISP; }
+    g.fillStyle = T.accent; g.textAlign = 'center'; g.fillText(nm, W / 2, 410);
+    g.fillStyle = T.text; g.font = 'italic 500 56px ' + DISP; g.textAlign = 'center';
+    var y = 520;
+    wrapLines(g, f.msg, 820).forEach(function (ln) { g.fillText(ln, W / 2, y); y += 72; });
+    y = Math.max(y + 40, 760);
+    g.fillStyle = T.mute; g.font = '500 24px ' + BODY; spaced(g, 'SỐ MAY MẮN', W / 2 - 230, y, 5);
+    g.fillStyle = T.accent; g.font = '700 150px ' + DISP; g.textAlign = 'center'; g.fillText(String(f.lucky), W / 2 - 230, y + 150);
+    g.fillStyle = T.mute; g.font = '500 24px ' + BODY; spaced(g, 'MÀU MAY MẮN', W / 2 + 230, y, 5);
+    g.fillStyle = f.color[1]; g.strokeStyle = T.text; g.lineWidth = 4;
+    g.beginPath(); g.arc(W / 2 + 230, y + 80, 44, 0, 6.2832); g.fill(); g.stroke();
+    g.fillStyle = T.text; g.font = '500 34px ' + BODY; g.textAlign = 'center'; g.fillText(f.color[0], W / 2 + 230, y + 170);
+    y += 250;
+    [['Tình cảm', f.love], ['May mắn', f.luck], ['Công việc', f.work], ['Độ nọc độc', f.venom]].forEach(function (p) {
+      g.textAlign = 'left'; g.fillStyle = T.mute; g.font = '400 30px ' + BODY; g.fillText(p[0], 150, y);
+      g.fillStyle = rgba(T.text, 0.14); g.fillRect(380, y - 22, 480, 14);
+      g.fillStyle = T.accent; g.fillRect(380, y - 22, 480 * p[1] / 100, 14);
+      g.textAlign = 'right'; g.fillStyle = T.text; g.fillText(p[1] + '%', 930, y);
+      y += 62;
+    });
+    g.textAlign = 'center'; g.fillStyle = T.gold; g.font = '500 26px ' + BODY; spaced(g, 'ANTARES', W / 2, H - 110, 8);
+    return c;
+  }
+  $('fortune-save').addEventListener('click', function (e) { sendImage(drawFortune, 'boi-thien-yet.png', 'Bói Thiên Yết hôm nay', e.currentTarget); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && saved && fortuneDay && fortuneDay !== dateText()) paintFortune(); });
+
+  function onEnter() {
+    paintCountdown();
+    paintWishForm();
+    loadWishes();
+    paintFortune();
+    loadInfo();
+    if (!saved.blown) openCake(null);
+  }
+
+  /* ---------- Antares experience controls ---------- */
+  var progressFill = $('scroll-progress-fill');
+  var backTop = $('back-to-top');
+  var scrollTicking = false;
+  function updateScrollUI() {
+    var doc = document.documentElement;
+    var maxScroll = Math.max(1, doc.scrollHeight - window.innerHeight);
+    var pct = Math.max(0, Math.min(100, (window.scrollY / maxScroll) * 100));
+    if (progressFill) progressFill.style.width = pct + '%';
+    if (backTop) backTop.classList.toggle('visible', window.scrollY > 420);
+    scrollTicking = false;
+  }
+  window.addEventListener('scroll', function () {
+    if (!scrollTicking) { scrollTicking = true; window.requestAnimationFrame(updateScrollUI); }
+  }, { passive: true });
+  window.addEventListener('resize', updateScrollUI, { passive: true });
+  updateScrollUI();
+  if (backTop) backTop.addEventListener('click', function () {
+    window.scrollTo({ top: 0, behavior: reduced || document.body.classList.contains('calm-mode') ? 'auto' : 'smooth' });
+  });
+
+  // Motion preference is optional and local to this browser; it never changes game/server data.
+  var CALM_KEY = 'thienyet.antares.calm.v1';
+  try { if (localStorage.getItem(CALM_KEY) === '1') document.body.classList.add('calm-mode'); } catch (_) {}
+  var calmButton = document.createElement('button');
+  calmButton.type = 'button';
+  calmButton.className = 'btn ghost';
+  calmButton.id = 'calm-toggle';
+  calmButton.hidden = true;
+  calmButton.style.cssText = 'position:fixed;left:12px;bottom:max(14px, env(safe-area-inset-bottom, 0px));z-index:14;padding:8px 12px;font-size:.68rem;letter-spacing:.06em;opacity:.88';
+  calmButton.setAttribute('aria-pressed', document.body.classList.contains('calm-mode') ? 'true' : 'false');
+  function paintCalmButton() {
+    var calm = document.body.classList.contains('calm-mode');
+    calmButton.textContent = calm ? 'Hiệu ứng: giảm' : 'Hiệu ứng: đầy đủ';
+    calmButton.setAttribute('aria-pressed', calm ? 'true' : 'false');
+    calmButton.title = calm ? 'Bật lại hiệu ứng chuyển động' : 'Giảm chuyển động và hiệu ứng';
+  }
+  calmButton.addEventListener('click', function () {
+    document.body.classList.toggle('calm-mode');
+    try { localStorage.setItem(CALM_KEY, document.body.classList.contains('calm-mode') ? '1' : '0'); } catch (_) {}
+    if (!document.body.classList.contains('calm-mode') && !reduced) requestAnimationFrame(drawSky);
+    paintCalmButton();
+  });
+  document.body.appendChild(calmButton);
+  paintCalmButton();
+
+  // Reveal sections only when motion is allowed and the browser supports observation.
+  if (!reduced && 'IntersectionObserver' in window) {
+    document.body.classList.add('reveal-ready');
+    var revealObserver = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-visible');
+          revealObserver.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -35px 0px' });
+    Array.prototype.forEach.call(document.querySelectorAll('.app main section'), function (section) {
+      section.classList.add('reveal');
+      revealObserver.observe(section);
+    });
+  }
+
+  // Subtle cinematic parallax on desktop only; no impact on content or stored data.
+  if (!reduced && window.matchMedia && window.matchMedia('(pointer:fine) and (hover:hover)').matches) {
+    var heroSky = $('hero-sky');
+    var pointerFrame = 0;
+    document.addEventListener('mousemove', function (event) {
+      if (!heroSky || document.body.classList.contains('calm-mode') || pointerFrame) return;
+      pointerFrame = requestAnimationFrame(function () {
+        pointerFrame = 0;
+        var x = (event.clientX / Math.max(window.innerWidth, 1) - .5) * 5;
+        var y = (event.clientY / Math.max(window.innerHeight, 1) - .5) * 5;
+        heroSky.style.translate = x.toFixed(2) + 'px ' + y.toFixed(2) + 'px';
+      });
+    }, { passive: true });
+    document.addEventListener('mouseleave', function () {
+      if (heroSky) heroSky.style.translate = '0 0';
+    });
+  }
+
+  var heroInvite = $('hero-open-invite');
+  if (heroInvite) heroInvite.addEventListener('click', function () { openInvite(heroInvite); });
+  var birthdayMusic = $('birthday-music');
+  if (birthdayMusic) birthdayMusic.addEventListener('click', function () {
+    birthdayTune();
+    birthdayMusic.textContent = 'Phát lại nhạc sinh nhật ♫';
+    birthdayMusic.setAttribute('aria-label', 'Phát lại nhạc sinh nhật');
+  });
+
+  /* ---------- Returning visitor: skip the gate ---------- */
+  if (saved) enterApp(false);
+})();
+</script>
+
+<script>
+/* Face-scan login: matches the live camera against faces.json (made with enroll.html), then fills ID + name. */
+(function () {
+  'use strict';
+  var LIB = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js';
+  var MODELS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model/';
+  var FACES_URL = 'faces.json';
+  var THRESHOLD = 0.5;      // lower = stricter
+  var MARGIN = 0.05;        // best match must beat the runner-up by this much
+  var NEED_HITS = 3;        // consecutive frames that agree
+  var TIMEOUT_MS = 25000;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var btn = $('face-btn'), ov = $('face-overlay'), vid = $('face-video'), frame = $('face-frame');
+  var st = $('face-status'), act = $('face-actions');
+  if (!btn || !ov) return;
+
+  var libPromise = null, faces = null, stream = null, running = false, modelsReady = false, token = 0;
+
+  function say(t) { st.textContent = t; }
+  function actions(list) {
+    act.textContent = '';
+    list.forEach(function (a) {
+      var b = document.createElement('button'); b.type = 'button'; b.textContent = a.label;
+      if (a.primary) b.className = 'primary';
+      b.addEventListener('click', a.fn); act.appendChild(b);
+    });
+  }
+  function loadScript(src) {
+    return new Promise(function (ok, bad) {
+      var s = document.createElement('script'); s.src = src; s.crossOrigin = 'anonymous';
+      s.onload = ok; s.onerror = function () { bad(new Error('script')); };
+      document.head.appendChild(s);
+    });
+  }
+  function prepare() {
+    if (libPromise) return libPromise;
+    libPromise = loadScript(LIB).then(function () {
+      var f = window.faceapi;
+      return Promise.all([
+        f.nets.tinyFaceDetector.loadFromUri(MODELS),
+        f.nets.faceLandmark68Net.loadFromUri(MODELS),
+        f.nets.faceRecognitionNet.loadFromUri(MODELS)
+      ]);
+    }).then(function () {
+      return fetch(FACES_URL, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('faces'); return r.json(); });
+    }).then(function (j) {
+      if (!Array.isArray(j) || !j.length) throw new Error('faces');
+      modelsReady = true;
+      faces = j.map(function (p) {
+        return { id: String(p.id), name: String(p.name), d: p.d.map(function (a) { return Float32Array.from(a); }) };
+      });
+    }).catch(function (e) { libPromise = null; throw e; });
+    return libPromise;
+  }
+  function dist(a, b) { var s = 0; for (var i = 0; i < a.length; i++) { var d = a[i] - b[i]; s += d * d; } return Math.sqrt(s); }
+  function match(desc) {
+    var best = null, second = 9;
+    faces.forEach(function (p) {
+      var m = 9; p.d.forEach(function (q) { var x = dist(desc, q); if (x < m) m = x; });
+      if (!best || m < best.dist) { if (best) second = Math.min(second, best.dist); best = { p: p, dist: m }; }
+      else if (m < second) second = m;
+    });
+    if (best && best.dist < THRESHOLD && (second - best.dist) >= MARGIN) return best.p;
+    return null;
+  }
+  function stopCam() {
+    running = false; frame.classList.remove('scan');
+    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
+    vid.srcObject = null;
+  }
+  function close() { token++; stopCam(); ov.classList.remove('on'); }
+
+  function signIn(p) {
+    close();
+    var uid = $('uid'), nm = $('pname');
+    uid.value = p.id;
+    uid.dispatchEvent(new Event('input', { bubbles: true }));
+    nm.value = p.name;
+    var form = $('gate-form');
+    if (form.requestSubmit) form.requestSubmit(); else form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+  }
+
+  function confirmWho(p) {
+    say('Có phải bạn là ' + p.name + ' (ID ' + p.id + ')?');
+    actions([{ label: 'Đúng, vào luôn', primary: true, fn: function () { signIn(p); } },
+             { label: 'Không phải tôi', fn: start }]);
+  }
+  function failActions() {
+    return [{ label: 'Thử lại', primary: true, fn: start }, { label: 'Chụp ảnh để quét', fn: function () { pic.value = ''; pic.click(); } }, { label: 'Đóng', fn: close }];
+  }
+  // Fallback for devices / in-app browsers that cannot open the live camera: take a selfie with the phone camera app, then scan it.
+  var pic = document.createElement('input');
+  pic.type = 'file'; pic.accept = 'image/*'; pic.setAttribute('capture', 'user'); pic.hidden = true;
+  document.body.appendChild(pic);
+  pic.addEventListener('change', function () {
+    var file = pic.files && pic.files[0]; if (!file) return;
+    ov.classList.add('on'); actions([{ label: 'Hủy', fn: close }]); say('Đang nhận diện ảnh…');
+    prepare().then(function () {
+      return new Promise(function (ok, bad) {
+        var url = URL.createObjectURL(file), im = new Image();
+        im.onload = function () { ok({ im: im, url: url }); };
+        im.onerror = function () { URL.revokeObjectURL(url); bad(new Error('img')); };
+        im.src = url;
+      });
+    }).then(function (o) {
+      var f = window.faceapi;
+      return f.detectSingleFace(o.im, new f.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.4 })).withFaceLandmarks().withFaceDescriptor().then(function (r) {
+        URL.revokeObjectURL(o.url);
+        var m = r ? match(r.descriptor) : null;
+        if (m) confirmWho(m);
+        else { say('Không nhận ra khuôn mặt trong ảnh. Hãy chụp thẳng mặt, đủ sáng.'); actions(failActions()); }
+      });
+    }).catch(function (e) {
+      say(String(e && e.message) === 'faces' ? 'Chưa có dữ liệu khuôn mặt. Hãy nhờ admin thêm khuôn mặt của bạn.' : 'Không xử lý được ảnh. Hãy thử lại.');
+      actions(failActions());
+    });
+  });
+  var INAPP = /Zalo|FBAN|FBAV|FB_IAB|Instagram|MicroMessenger|TikTok|Line\//i.test(navigator.userAgent);
+
+  function loop() {
+    var f = window.faceapi, hits = 0, last = null, t0 = Date.now();
+    var opts = new f.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
+    frame.classList.add('scan'); say('Nhìn thẳng vào camera và giữ yên một chút…');
+    function tick() {
+      if (!running) return;
+      if (Date.now() - t0 > TIMEOUT_MS) {
+        stopCam(); say('Không nhận ra bạn. Hãy thử lại ở nơi đủ sáng. Nếu bạn chưa có trong danh sách, hãy nhờ admin thêm khuôn mặt của bạn.');
+        actions(failActions()); return;
+      }
+      f.detectSingleFace(vid, opts).withFaceLandmarks().withFaceDescriptor().then(function (r) {
+        if (!running) return;
+        var p = r ? match(r.descriptor) : null;
+        if (p && last && last.id === p.id) hits++; else hits = p ? 1 : 0;
+        last = p;
+        if (hits >= NEED_HITS) {
+          stopCam();
+          confirmWho(p); return;
+        }
+        setTimeout(tick, 120);
+      }).catch(function () { setTimeout(tick, 400); });
+    }
+    tick();
+  }
+
+  function start() {
+    var my = ++token;
+    ov.classList.add('on'); actions([{ label: 'Hủy', fn: close }]);
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      say('Trình duyệt này không mở được camera trực tiếp' + (INAPP ? ' (trình duyệt trong ứng dụng thường chặn camera; bạn có thể mở link bằng Chrome/Safari)' : ' (cần HTTPS)') + '. Hãy dùng “Chụp ảnh để quét”.');
+      actions(failActions()); return;
+    }
+    say('Đang mở camera…');
+    // Open the camera right away (inside the tap) and load the models in parallel.
+    var libP = prepare(); libP.catch(function () {});
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } }, audio: false })
+    .then(function (s) {
+      if (my !== token || !ov.classList.contains('on')) { s.getTracks().forEach(function (t) { t.stop(); }); throw new Error('cancel'); }
+      stream = s; vid.srcObject = s; running = true;
+      return vid.play().catch(function () {});
+    }).then(function () {
+      if (!modelsReady) say('Đang tải bộ nhận diện (lần đầu hơi lâu, vui lòng chờ)…');
+      return libP;
+    }).then(function () { if (running && my === token) loop(); })
+    .catch(function (e) {
+      var m = String(e && e.message || e);
+      if (m === 'cancel') return;
+      stopCam();
+      if (m === 'faces') { say('Chưa có dữ liệu khuôn mặt. Hãy nhờ admin thêm khuôn mặt của bạn.'); actions([{ label: 'Đóng', primary: true, fn: close }]); return; }
+      if (m === 'script') say('Không tải được bộ nhận diện. Hãy kiểm tra mạng rồi thử lại.');
+      else if (e && e.name === 'NotAllowedError') say('Bạn chưa cho phép dùng camera. Hãy cấp quyền, hoặc dùng “Chụp ảnh để quét”.');
+      else say('Không mở được camera' + (INAPP ? ' (trình duyệt trong ứng dụng thường chặn camera; hãy mở link bằng Chrome/Safari)' : '') + '. Bạn có thể dùng “Chụp ảnh để quét”.');
+      actions(failActions());
+    });
+  }
+  // Warm up the models in the background while the login screen is showing.
+  window.addEventListener('load', function () {
+    setTimeout(function () { if (btn.offsetParent !== null) prepare().catch(function () {}); }, 1200);
+  });
+  btn.addEventListener('click', start);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ov.classList.contains('on')) close(); });
+})();
+</script>
+</body>
+</html>
