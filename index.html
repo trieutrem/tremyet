@@ -1349,7 +1349,16 @@
   }
   uidEl.addEventListener('input', syncGate);
 
+  // Ghi nhận tài khoản đã đăng nhập (admin xem trong mục "Tài khoản đã đăng nhập"). Mỗi lần mở trang chỉ gửi một lần.
+  var loginTracked = false;
+  function trackLogin() {
+    if (loginTracked || !saved || !saved.id) return;
+    loginTracked = true;
+    callServer({ action: 'login', id: saved.id, name: saved.name }).catch(function () { loginTracked = false; });
+  }
+
   function enterApp(animate) {
+    trackLogin();
     $('who').textContent = saved.name + ' · ID ' + saved.id;
     $('pname-show').value = saved.name;
     var greeting = $('personal-greeting');

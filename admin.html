@@ -49,6 +49,10 @@
   .badge.maybe { color: var(--gold); border-color: rgba(201,161,92,.5); }
   .badge.no { color: var(--ash); }
   .stats.small .stat b { font-size: 1.25rem; }
+  .btn.danger { background: #8a1020; border-color: rgba(240,64,90,.45); }
+  .btn.danger:hover:not(:disabled) { background: #a3142a; }
+  .info .n { font-weight: 500; overflow-wrap: anywhere; }
+  .badge.old { color: var(--gold); border-color: rgba(201,161,92,.4); font-size: .75rem; padding: 2px 10px; margin-left: 6px; }
   @media (max-width: 560px) { ul.rows li.req { flex-direction: column; align-items: stretch; } .acts { justify-content: flex-start; } }
 </style>
 </head>
@@ -66,6 +70,7 @@
   <div id="panel" hidden>
     <div class="top">
       <div class="stats">
+        <div class="stat"><b id="s-acc">0</b>tài khoản</div>
         <div class="stat"><b id="s-total">0</b>lượt quay</div>
         <div class="stat"><b id="s-given">0</b>đã trao</div>
         <div class="stat"><b id="s-wish">0</b>lời chúc chờ duyệt</div>
@@ -77,6 +82,18 @@
         <button class="btn ghost" type="button" id="out">Thoát</button>
       </div>
     </div>
+
+    <h2>Tài khoản đã đăng nhập</h2>
+    <div class="tools">
+      <input id="acc-q" type="text" placeholder="Tìm theo ID hoặc tên" aria-label="Tìm tài khoản">
+      <select id="acc-sort" aria-label="Sắp xếp tài khoản">
+        <option value="recent">Vào gần nhất</option><option value="oldest">Vào sớm nhất</option>
+        <option value="name">Tên A–Z</option><option value="logins">Vào nhiều lần nhất</option>
+      </select>
+      <button class="btn ghost" type="button" id="csv-accs">Tải CSV</button>
+    </div>
+    <p class="msg" id="acc-msg" role="status" aria-live="polite"></p>
+    <ul class="rows" id="accs"></ul>
 
     <h2>Thông báo từ chủ trang</h2>
     <div class="tools">
@@ -123,7 +140,7 @@
 (function () {
   'use strict';
   var SHEET_URL = 'https://script.google.com/macros/s/AKfycbyQlMvlxL35RJGQIVX3_I97QS67b0iEvic2TxsOcAhoicGjnn7EuUhVlQcOs_hS6I3_VA/exec';
-  var pw = '', data = { spins: [], wishes: [], requests: [], rsvps: [] };
+  var pw = '', data = { spins: [], wishes: [], requests: [], rsvps: [] }, accounts = [], accError = '';
   function $(id) { return document.getElementById(id); }
 
   function call(payload) {
@@ -133,7 +150,8 @@
   }
   var ERR = { denied: 'Sai mật khẩu.', locked: 'Nhập sai quá nhiều lần. Thử lại sau 10 phút.', off: 'Trang quản trị đang tắt (chưa đặt ADMIN_PASSWORD trong script).',
     row: 'Dòng không hợp lệ. Hãy bấm Tải lại.', stale: 'Sheet đã thay đổi. Hãy bấm Tải lại rồi thử lại.',
-    done: 'Yêu cầu này đã được xử lý. Hãy bấm Tải lại.', num: 'Số lượt không hợp lệ.' };
+    done: 'Yêu cầu này đã được xử lý. Hãy bấm Tải lại.', num: 'Số lượt không hợp lệ.', id: 'Thiếu ID.',
+    action: 'Máy chủ chưa hỗ trợ chức năng này. Hãy cập nhật Apps Script theo file hướng dẫn rồi triển khai lại.' };
   function errText(d) { return (d && ERR[d.error]) || ('Lỗi: ' + ((d && d.error) || 'không rõ')); }
 
   function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
@@ -279,6 +297,66 @@
     if (!shown) wishes.appendChild(el('li', 'empty', 'Không có lời chúc nào.'));
   }
 
+
+  /* ---------- Tài khoản đã đăng nhập ---------- */
+  function renderAccounts() {
+    var ul = $('accs'), q = $('acc-q').value.trim().toLowerCase(), sort = $('acc-sort').value, list = accounts.slice(), shown = 0;
+    ul.textContent = '';
+    $('s-acc').textContent = accounts.length;
+    if (accError) { $('acc-msg').textContent = accError; return; }
+    list.sort(function (a, b) {
+      if (sort === 'name') return String(a.name || a.id).localeCompare(String(b.name || b.id), 'vi');
+      if (sort === 'logins') return (b.logins - a.logins) || (b.lastMs - a.lastMs);
+      if (sort === 'oldest') return (a.firstMs || 9e15) - (b.firstMs || 9e15);
+      return b.lastMs - a.lastMs;
+    });
+    list.forEach(function (a) {
+      if (q && (a.id + ' ' + a.name).toLowerCase().indexOf(q) < 0) return;
+      shown++;
+      var li = el('li'), info = el('div', 'info');
+      var t = el('div', 'n', a.name || '(chưa có tên)');
+      if (!a.tracked) t.appendChild(el('span', 'badge old', 'tài khoản cũ'));
+      info.appendChild(t);
+      info.appendChild(el('div', 'm', 'ID ' + a.id + ' · ' + (a.tracked ? a.logins + ' lần vào · vào đầu ' + a.first + ' · gần nhất ' + a.last : 'chưa ghi nhận lượt đăng nhập · hoạt động gần nhất ' + (a.last || '—'))));
+      var bits = [];
+      bits.push(a.spins ? 'đã quay ' + a.spins + ' lượt' + (a.items ? ' (' + a.items + ')' : '') : 'chưa quay');
+      if (a.wishes) bits.push('lời chúc: ' + (a.wishApproved ? 'đã duyệt' : 'chờ duyệt'));
+      if (a.requests) bits.push(a.requests + ' yêu cầu thêm lượt');
+      info.appendChild(el('div', 'm', bits.join(' · ')));
+      li.appendChild(info);
+      var del = el('button', 'btn danger', 'Xóa tài khoản'); del.type = 'button';
+      del.addEventListener('click', function () { deleteAccount(a, del); });
+      li.appendChild(del);
+      ul.appendChild(li);
+    });
+    if (!shown) ul.appendChild(el('li', 'empty', accounts.length ? 'Không có tài khoản nào khớp.' : 'Chưa có tài khoản nào.'));
+  }
+
+  function loadAccounts() {
+    accError = ''; $('acc-msg').textContent = '';
+    return call({ action: 'admin_accounts' }).then(function (d) {
+      if (!d || !d.ok) { accounts = []; accError = errText(d); }
+      else accounts = d.accounts || [];
+      renderAccounts();
+    }).catch(function () { accounts = []; accError = 'Không tải được danh sách tài khoản.'; renderAccounts(); });
+  }
+
+  function deleteAccount(a, btn) {
+    var parts = [];
+    if (a.spins) parts.push(a.spins + ' lượt quay');
+    if (a.wishes) parts.push('lời chúc');
+    if (a.requests) parts.push(a.requests + ' yêu cầu thêm lượt');
+    parts.push('ghi nhận đăng nhập');
+    var ok = window.confirm('Xóa tài khoản "' + (a.name || '(chưa có tên)') + '" (ID ' + a.id + ')?\n\nSẽ xóa vĩnh viễn: ' + parts.join(', ') + '.\n\n' +
+      'Phần quà người này đã quay sẽ không còn được tính, và nếu họ đăng nhập lại thì bắt đầu như tài khoản mới (có lượt quay mới). Không thể hoàn tác.');
+    if (!ok) return;
+    btn.disabled = true; $('acc-msg').textContent = 'Đang xóa...';
+    call({ action: 'admin_delete', id: a.id }).then(function (d) {
+      if (!d || !d.ok) { $('acc-msg').textContent = errText(d); btn.disabled = false; return; }
+      return load().then(function () { $('acc-msg').textContent = 'Đã xóa tài khoản ' + (a.name || a.id) + ' (' + (d.total || 0) + ' dòng dữ liệu).'; });
+    }).catch(function () { $('acc-msg').textContent = 'Không kết nối được máy chủ.'; btn.disabled = false; });
+  }
+
   function load() {
     $('msg').textContent = 'Đang tải...';
     return call({ action: 'admin_list' }).then(function (d) {
@@ -286,6 +364,7 @@
       data = d; $('msg').textContent = ''; $('ann').value = d.announce || '';
       $('login').hidden = true; $('panel').hidden = false;
       render();
+      loadAccounts();
       return true;
     }).catch(function () { $('msg').textContent = 'Không kết nối được máy chủ.'; return false; });
   }
@@ -297,12 +376,18 @@
     load().then(function (ok) { $('go').disabled = false; if (!ok) pw = ''; $('pw').value = ''; });
   });
   $('refresh').addEventListener('click', load);
-  $('out').addEventListener('click', function () { pw = ''; data = { spins: [], wishes: [], requests: [], rsvps: [] }; $('panel').hidden = true; $('login').hidden = false; $('msg').textContent = ''; $('pw').focus(); });
+  $('out').addEventListener('click', function () { pw = ''; data = { spins: [], wishes: [], requests: [], rsvps: [] }; accounts = []; accError = ''; $('panel').hidden = true; $('login').hidden = false; $('msg').textContent = ''; $('pw').focus(); });
   $('q').addEventListener('input', render);
   $('only-open').addEventListener('change', render);
   $('only-wait').addEventListener('change', render);
   $('only-req').addEventListener('change', render);
   $('rsvp-filter').addEventListener('change', renderRsvp);
+  $('acc-q').addEventListener('input', renderAccounts);
+  $('acc-sort').addEventListener('change', renderAccounts);
+  $('csv-accs').addEventListener('click', function () {
+    downloadCsv('tai-khoan.csv', ['ID', 'Tên', 'Vào đầu', 'Gần nhất', 'Số lần vào', 'Số lượt quay', 'Vật phẩm', 'Lời chúc', 'Yêu cầu thêm lượt'],
+      accounts.map(function (a) { return [a.id, a.name, a.first, a.last, a.logins, a.spins, a.items, a.wishes ? (a.wishApproved ? 'đã duyệt' : 'chờ duyệt') : '', a.requests]; }));
+  });
 
   $('ann-send').addEventListener('click', function () {
     var b = $('ann-send'), text = $('ann').value.replace(/\s+/g, ' ').trim();
