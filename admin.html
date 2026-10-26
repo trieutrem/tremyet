@@ -56,6 +56,9 @@
   .annbox { display: grid; gap: 10px; max-width: 620px; }
   .annbox textarea { width: 100%; resize: vertical; min-height: 84px; background: rgba(239,220,210,.06); border: 1px solid var(--line); border-radius: 10px; padding: 11px 14px; font: inherit; color: inherit; line-height: 1.5; }
   .annbox textarea:focus { outline: none; border-color: var(--antares); }
+  .endrow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--ash); font-size: .9rem; }
+  .endrow input { background: rgba(239,220,210,.06); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; color: inherit; font: inherit; color-scheme: dark; }
+  .endrow input:focus { outline: none; border-color: var(--antares); }
   .acts.left { justify-content: flex-start; }
   .badge.old { color: var(--gold); border-color: rgba(201,161,92,.4); font-size: .75rem; padding: 2px 10px; margin-left: 6px; }
   @media (max-width: 560px) { ul.rows li.req { flex-direction: column; align-items: stretch; } .acts { justify-content: flex-start; } }
@@ -100,17 +103,19 @@
     <ul class="rows" id="accs"></ul>
 
     <h2>Thông báo từ chủ trang</h2>
-    <p class="m hintline">Hiện dạng popup <b>sau khi người chơi đăng nhập</b>. Mỗi lần bấm Đăng, ai chưa xem bản này sẽ thấy popup một lần.</p>
+    <p class="m hintline">Hiện dạng popup <b>sau khi người chơi đăng nhập</b>, mỗi lần họ vào, cho đến khi hết hạn hoặc bạn bấm Gỡ.</p>
     <div class="annbox">
       <textarea id="ann" maxlength="500" rows="3" placeholder="Nội dung thông báo (có thể xuống dòng)" aria-label="Thông báo sau đăng nhập"></textarea>
+      <label class="endrow" for="ann-end">Kết thúc vào <input type="datetime-local" id="ann-end"> <span class="m">(để trống = không hết hạn)</span></label>
       <div class="acts left"><button class="btn" type="button" id="ann-send">Đăng</button><button class="btn ghost" type="button" id="ann-clear">Gỡ thông báo</button></div>
     </div>
     <p class="msg" id="ann-msg" role="status" aria-live="polite"></p>
 
     <h2>Thông báo từ chủ trang ver2</h2>
-    <p class="m hintline">Hiện dạng popup <b>ngay ở màn hình đăng nhập</b>, trước khi người chơi vào trang.</p>
+    <p class="m hintline">Hiện dạng popup <b>ngay ở màn hình đăng nhập</b>, trước khi vào trang, mỗi lần mở trang, cho đến khi hết hạn hoặc bạn bấm Gỡ.</p>
     <div class="annbox">
       <textarea id="ann2" maxlength="500" rows="3" placeholder="Nội dung thông báo hiện trước khi đăng nhập" aria-label="Thông báo trước đăng nhập"></textarea>
+      <label class="endrow" for="ann2-end">Kết thúc vào <input type="datetime-local" id="ann2-end"> <span class="m">(để trống = không hết hạn)</span></label>
       <div class="acts left"><button class="btn" type="button" id="ann2-send">Đăng</button><button class="btn ghost" type="button" id="ann2-clear">Gỡ thông báo</button></div>
     </div>
     <p class="msg" id="ann2-msg" role="status" aria-live="polite"></p>
@@ -148,7 +153,7 @@
   }
   var ERR = { denied: 'Sai mật khẩu.', locked: 'Nhập sai quá nhiều lần. Thử lại sau 10 phút.', off: 'Trang quản trị đang tắt (chưa đặt ADMIN_PASSWORD trong script).',
     row: 'Dòng không hợp lệ. Hãy bấm Tải lại.', stale: 'Sheet đã thay đổi. Hãy bấm Tải lại rồi thử lại.',
-    done: 'Yêu cầu này đã được xử lý. Hãy bấm Tải lại.', num: 'Số lượt không hợp lệ.', id: 'Thiếu ID.',
+    done: 'Yêu cầu này đã được xử lý. Hãy bấm Tải lại.', num: 'Số lượt không hợp lệ.', past: 'Thời gian kết thúc đã qua. Hãy chọn một thời điểm trong tương lai.', far: 'Thời gian kết thúc quá xa (tối đa 5 năm).', id: 'Thiếu ID.',
     action: 'Máy chủ chưa hỗ trợ chức năng này. Hãy cập nhật Apps Script theo file hướng dẫn rồi triển khai lại.' };
   function errText(d) { return (d && ERR[d.error]) || ('Lỗi: ' + ((d && d.error) || 'không rõ')); }
 
@@ -333,7 +338,11 @@
     $('msg').textContent = 'Đang tải...';
     return call({ action: 'admin_list' }).then(function (d) {
       if (!d || !d.ok) { $('msg').textContent = errText(d); return false; }
-      data = d; $('msg').textContent = ''; $('ann').value = d.announce || ''; $('ann2').value = d.announce2 || '';
+      data = d; $('msg').textContent = ''; var an = d.ann || {};
+      $('ann').value = an.announce || ''; $('ann2').value = an.announce2 || '';
+      $('ann-end').value = an.announceEnd ? toLocalInput(an.announceEnd) : ''; $('ann2-end').value = an.announce2End ? toLocalInput(an.announce2End) : '';
+      $('ann-msg').textContent = an.announce ? (an.announceExpired ? 'Thông báo này đã hết hạn nên người chơi không còn thấy.' : (an.announceEnd ? 'Đang hiện, kết thúc lúc ' + fmtStamp(an.announceEnd) + '.' : 'Đang hiện, không hết hạn.')) : '';
+      $('ann2-msg').textContent = an.announce2 ? (an.announce2Expired ? 'Thông báo này đã hết hạn nên người chơi không còn thấy.' : (an.announce2End ? 'Đang hiện, kết thúc lúc ' + fmtStamp(an.announce2End) + '.' : 'Đang hiện, không hết hạn.')) : '';
       $('login').hidden = true; $('panel').hidden = false;
       render();
       loadAccounts();
@@ -360,25 +369,31 @@
       accounts.map(function (a) { return [a.id, a.name, a.first, a.last, a.logins, a.spins, a.items, a.wishes ? (a.wishApproved ? 'đã duyệt' : 'chờ duyệt') : '', a.requests]; }));
   });
 
-  function bindAnn(inputId, sendId, clearId, msgId, action, key) {
-    function save(text, btn) {
+  function fmtStamp(ms) { var d = new Date(ms); function p(x) { return (x < 10 ? '0' : '') + x; } return p(d.getHours()) + ':' + p(d.getMinutes()) + ' ' + p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear(); }
+  function toLocalInput(ms) { var d = new Date(ms); function p(x) { return (x < 10 ? '0' : '') + x; } return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes()); }
+  function bindAnn(inputId, endId, sendId, clearId, msgId, action, key) {
+    function save(text, end) {
       var s = $(sendId), c = $(clearId), m = $(msgId);
       s.disabled = true; c.disabled = true; m.textContent = 'Đang lưu...';
-      call({ action: action, text: text }).then(function (d) {
+      call({ action: action, text: text, end: end }).then(function (d) {
         if (!d || !d.ok) { m.textContent = errText(d); return; }
         data[key] = d.text; $(inputId).value = d.text;
-        m.textContent = d.text ? 'Đã đăng. Người chơi sẽ thấy popup này một lần.' : 'Đã gỡ thông báo.';
+        if (!d.text) { $(endId).value = ''; m.textContent = 'Đã gỡ thông báo.'; }
+        else m.textContent = d.end ? 'Đã đăng. Hiện cho người chơi mỗi lần vào, đến hết ' + fmtStamp(d.end) + '.' : 'Đã đăng. Hiện cho người chơi mỗi lần vào cho đến khi bạn gỡ.';
       }).catch(function () { m.textContent = 'Không kết nối được máy chủ.'; }).then(function () { s.disabled = false; c.disabled = false; });
     }
     $(sendId).addEventListener('click', function () {
       var text = $(inputId).value.replace(/\r/g, '').replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim();
       if (!text) { $(msgId).textContent = 'Hãy nhập nội dung, hoặc bấm "Gỡ thông báo" để xóa.'; return; }
-      save(text);
+      var v = $(endId).value, end = 0;
+      if (v) { end = new Date(v).getTime(); if (!(end > 0)) { $(msgId).textContent = 'Thời gian kết thúc không hợp lệ.'; return; } }
+      if (end && end <= Date.now()) { $(msgId).textContent = errText({ error: 'past' }); return; }
+      save(text, end);
     });
-    $(clearId).addEventListener('click', function () { $(inputId).value = ''; save(''); });
+    $(clearId).addEventListener('click', function () { $(inputId).value = ''; save('', 0); });
   }
-  bindAnn('ann', 'ann-send', 'ann-clear', 'ann-msg', 'admin_announce', 'announce');
-  bindAnn('ann2', 'ann2-send', 'ann2-clear', 'ann2-msg', 'admin_announce2', 'announce2');
+  bindAnn('ann', 'ann-end', 'ann-send', 'ann-clear', 'ann-msg', 'admin_announce', 'announce');
+  bindAnn('ann2', 'ann2-end', 'ann2-send', 'ann2-clear', 'ann2-msg', 'admin_announce2', 'announce2');
   $('csv-spins').addEventListener('click', function () {
     downloadCsv('nguoi-trung-thuong.csv', ['Thời gian', 'ID', 'Tên', 'Vật phẩm', 'Đã trao'],
       (data.spins || []).map(function (r) { return [r.time, r.id, r.name, r.item, r.given ? 'x' : '']; }));

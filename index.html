@@ -2285,21 +2285,22 @@
     }).then(function () { rsvpSending = false; rsvpSend.disabled = false; });
   });
 
-  // Thông báo của chủ trang: popup. "ann" hiện sau khi đăng nhập, "ann2" hiện ngay ở màn hình đăng nhập.
-  var ANN_KEY = 'thienyet.antares.ann', ANN2_KEY = 'thienyet.antares.ann2';
-  var annPop = $('ann-pop'), annInfo = null, annKey = '', annId = '', annPrevOverflow = '';
-  function annSeen(k) { try { return localStorage.getItem(k) || ''; } catch (err) { return ''; } }
-  function annTimeText(id) {
-    var n = Number(id); if (!(n > 1e11)) return '';
-    var d = new Date(n);
-    function p(x) { return (x < 10 ? '0' : '') + x; }
-    return 'Đăng lúc ' + p(d.getHours()) + ':' + p(d.getMinutes()) + ' · ' + p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + d.getFullYear();
+  // Thông báo của chủ trang: popup, hiện MỖI LẦN vào trang cho đến khi hết hạn hoặc bị gỡ.
+  // "ann" hiện sau khi đăng nhập, "ann2" hiện ngay ở màn hình đăng nhập.
+  var annPop = $('ann-pop'), annInfo = null, annSkew = 0, annPrevOverflow = '', annDone = { pre: false, post: false }, annKind = '';
+  function p2(x) { return (x < 10 ? '0' : '') + x; }
+  function annStamp(ms) { var d = new Date(ms); return p2(d.getHours()) + ':' + p2(d.getMinutes()) + ' · ' + p2(d.getDate()) + '/' + p2(d.getMonth() + 1) + '/' + d.getFullYear(); }
+  function annTimeText(id, end) {
+    var parts = [], n = Number(id);
+    if (n > 1e11) parts.push('Đăng lúc ' + annStamp(n));
+    if (Number(end) > 0) parts.push('Có hiệu lực đến ' + annStamp(Number(end)));
+    return parts.join(' · ');
   }
-  function showAnn(key, text, id, title) {
-    annKey = key; annId = String(id);
+  function showAnn(kind, text, id, end, title) {
+    annKind = kind; annDone[kind] = true;
     $('ann-title').textContent = title;
     $('ann-text').textContent = text;
-    $('ann-time').textContent = annTimeText(id);
+    $('ann-time').textContent = annTimeText(id, end);
     annPrevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
     annPop.hidden = false;
@@ -2307,23 +2308,29 @@
   }
   function closeAnn() {
     if (annPop.hidden) return;
-    try { localStorage.setItem(annKey, annId); } catch (err) { /* ignore */ }
     annPop.hidden = true;
     document.body.style.overflow = annPrevOverflow;
-    setTimeout(maybeAnnounce, 300);
+  }
+  function annLive(text, end) {
+    if (!text) return false;
+    var e = Number(end) || 0;
+    return !(e > 0 && Date.now() + annSkew > e);   // đã hết hạn thì không hiện
   }
   function maybeAnnounce() {
     if (!annInfo || !annPop.hidden) return;
     if (saved && !app.hidden) {
-      if (annInfo.announce && String(annInfo.announceId) !== annSeen(ANN_KEY)) showAnn(ANN_KEY, annInfo.announce, annInfo.announceId, 'Có tin mới cho bạn');
-    } else if (!saved && annInfo.announce2 && String(annInfo.announce2Id) !== annSeen(ANN2_KEY)) {
-      showAnn(ANN2_KEY, annInfo.announce2, annInfo.announce2Id, 'Đọc nhanh trước khi vào');
+      if (!annDone.post && annLive(annInfo.announce, annInfo.announceEnd)) showAnn('post', annInfo.announce, annInfo.announceId, annInfo.announceEnd, 'Có tin mới cho bạn');
+    } else if (!saved) {
+      if (!annDone.pre && annLive(annInfo.announce2, annInfo.announce2End)) showAnn('pre', annInfo.announce2, annInfo.announce2Id, annInfo.announce2End, 'Đọc nhanh trước khi vào');
     }
   }
   function loadInfo() {
+    // mỗi lần vào (mở trang hoặc đăng nhập) là một lần hiện lại
+    if (saved) annDone.post = false; else annDone.pre = false;
     callServer({ action: 'info' }).then(function (d) {
       if (!d || !d.ok) return;
       annInfo = d;
+      if (Number(d.now) > 0) annSkew = Number(d.now) - Date.now();
       setTimeout(maybeAnnounce, saved ? 700 : 250);
     }).catch(function () { /* không có mạng: bỏ qua */ });
   }
