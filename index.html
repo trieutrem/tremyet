@@ -659,7 +659,7 @@
   <div class="face-frame" id="face-frame"><video id="face-video" playsinline muted autoplay></video></div>
   <p class="face-status" id="face-status" aria-live="polite"></p>
   <div class="face-actions" id="face-actions"></div>
-  <p class="face-note">Ảnh không được lưu hay gửi đi. Việc nhận diện chạy ngay trên điện thoại của bạn.</p>
+  <p class="face-note">Ảnh không được lưu hay gửi đi.</p>
 </div>
 <div class="app" id="app" hidden>
   <header class="bar">
@@ -728,7 +728,7 @@
         </div>
         <form class="wish-form" id="wish-form" novalidate>
           <label class="panel-label" for="wish-text">Tâm sự tối đa 140 ký tự</label>
-          <textarea id="wish-text" maxlength="140" placeholder="Viết lời "Tâm sự người cung nữ"...></textarea>
+          <textarea id="wish-text" maxlength="140" placeholder="Viết lời &quot;Tâm sự người cung nữ&quot;..."></textarea>
           <div class="wish-row">
             <span class="note" id="wish-count">0/140</span>
             <button class="btn" type="submit" id="wish-send">Gửi</button>
@@ -2356,8 +2356,10 @@
     } else { copyLink(url); }
   }
 
-  $('open-invite').addEventListener('click', function (e) { openInvite(e.currentTarget); });
-  $('open-invite-2').addEventListener('click', function (e) { openInvite(e.currentTarget); });
+  var openInv1 = $('open-invite');
+  if (openInv1) openInv1.addEventListener('click', function (e) { openInvite(e.currentTarget); });
+  var openInv2 = $('open-invite-2');
+  if (openInv2) openInv2.addEventListener('click', function (e) { openInvite(e.currentTarget); });
   $('invite-close').addEventListener('click', closeInvite);
   $('invite-save').addEventListener('click', function (e) { sendImage(drawInvite, 'thiep-moi.png', 'Thiệp mời', e.currentTarget); });
   $('invite-cal').addEventListener('click', addToCalendar);
