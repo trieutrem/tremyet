@@ -672,6 +672,11 @@
   @keyframes gmPulse { 50% { box-shadow:0 0 0 1px rgba(240,64,90,.7), 0 0 110px rgba(240,64,90,.5); } }
   @keyframes gmShake { 20%,60% { transform:translateX(-8px); } 40%,80% { transform:translateX(8px); } }
   @media (prefers-reduced-motion: reduce) { .gm-card, .gm-card.final, .gm-card.shake { animation:none; } }
+
+  .face-frame { transition:border-color .25s, box-shadow .25s; }
+  .face-frame.found { border-color:#e8c27a; }
+  .face-frame.ok { border-color:#58c27d; box-shadow:0 0 70px rgba(88,194,125,.45); }
+  .face-frame.bad { border-color:#f0405a; box-shadow:0 0 60px rgba(240,64,90,.35); }
 </style>
 </head>
 <body>
@@ -1513,7 +1518,7 @@
   }
   function loadProfile() {
     var who = saved; if (!who) return;
-    callServer({ action: 'profile', id: who.id, name: who.name }).then(function (d) { if (d && d.ok && saved === who) { paintProfile(d); loadBoard(); } }).catch(function () { /* bỏ qua */ });
+    callServer({ action: 'profile', id: who.id, name: who.name }).then(function (d) { if (d && d.ok && typeof d.xp === 'number' && saved === who) { paintProfile(d); loadBoard(); } }).catch(function () { /* bỏ qua */ });
   }
   $('pf-checkin').addEventListener('click', function () {
     var who = saved; if (!who || pfBusy) return;
@@ -1529,6 +1534,14 @@
   /* ---------- Thử thách Antares: đố vui (130 XP) + cánh cửa cuối (20 XP). Máy chủ giữ đáp án và tính điểm ---------- */
   var gmPop = $('gm-pop'), gmCard = $('gm-card'), gmTimer = 0, gmBusy = false;
   var GM_ERR = { expired: 'Hết thời gian xử lý câu này. Hãy bắt đầu lại.', full: 'Hôm nay bạn đã đủ 130 XP đố vui.', spent: 'Hôm nay bạn đã dùng hết số câu hỏi.', locked: 'Cần đủ 130 XP đố vui để mở cánh cửa cuối.', solved: 'Bạn đã vượt qua cánh cửa cuối hôm nay.', notries: 'Hôm nay bạn đã hết lượt thử cánh cửa cuối.' };
+  function gmFailText(e) {
+    var c = String(e && (e.code || e.message) || '');
+    if (c === 'old') return 'Trò chơi chưa sẵn sàng trên máy chủ. Chủ trang cần cập nhật Apps Script (dán lại crip.txt rồi triển khai phiên bản mới).';
+    if (c === 'net') return 'Mất kết nối mạng. Hãy kiểm tra mạng rồi thử lại.';
+    if (c === 'timeout') return 'Máy chủ phản hồi quá chậm. Hãy thử lại.';
+    return 'Chưa kết nối được máy chủ' + (c ? ' (' + c + ')' : '') + '.';
+  }
+  function gmOld() { var er = new Error('old'); er.code = 'old'; return er; }
   function gmAct(list) {
     var box = $('gm-actions'); box.textContent = '';
     list.forEach(function (a) { var b = document.createElement('button'); b.type = 'button'; b.className = 'btn' + (a.ghost ? ' ghost' : ''); b.textContent = a.label; b.addEventListener('click', a.fn); box.appendChild(b); });
@@ -1553,18 +1566,19 @@
   function gmHome() {
     gmCard.classList.remove('final'); $('gm-eyebrow').textContent = 'Thử thách Antares'; gmReset('Đang tải…');
     callServer({ action: 'game_state', id: saved.id }).then(function (st) {
-      if (!st || !st.ok) throw new Error('x'); gmState(st);
+      if (!st || !st.ok || typeof st.total !== 'number') throw gmOld(); gmState(st);
       if (st.total >= st.totalCap) { gmReset('Trọn vẹn 150 XP!'); $('gm-fb').textContent = 'Hôm nay bạn đã lấy đủ điểm. Mai quay lại thử sức tiếp nhé.'; gmAct([{ label: 'Đóng', fn: gmClose }]); return; }
       if (!st.unlocked) {
         gmReset('Đố vui thiên hà'); $('gm-q').textContent = 'Trả lời đúng mỗi câu +10 XP (tối đa 130 XP/ngày). Mỗi câu có 20 giây, được sai tối đa 3 câu. Đủ 130 XP sẽ mở cánh cửa cuối cùng.';
         gmAct([{ label: st.asked ? 'Chơi tiếp' : 'Bắt đầu', fn: gmNext }]);
       } else if (!st.solved && st.triesLeft > 0) gmDoor(st);
       else { gmReset('Hết lượt hôm nay'); $('gm-fb').textContent = st.solved ? 'Bạn đã vượt qua cánh cửa cuối.' : 'Cánh cửa cuối đã khép lại cho hôm nay. Mai thử lại nhé.'; gmAct([{ label: 'Đóng', fn: gmClose }]); }
-    }).catch(function () { gmReset('Chưa kết nối được'); gmAct([{ label: 'Thử lại', fn: gmHome }, { label: 'Đóng', ghost: true, fn: gmClose }]); });
+    }).catch(function (e) { gmReset('Chưa chơi được'); $('gm-fb').textContent = gmFailText(e); gmAct([{ label: 'Thử lại', fn: gmHome }, { label: 'Đóng', ghost: true, fn: gmClose }]); });
   }
   function gmNext() {
     if (gmBusy) return; gmBusy = true; gmReset('Đang chuẩn bị câu hỏi…');
     callServer({ action: 'game_next', id: saved.id }).then(function (d) {
+      if (d && d.ok && !d.o) throw gmOld();
       if (!d || !d.ok) { if (d && d.state) gmState(d.state); gmReset(GM_ERR[d && d.error] || 'Chưa lấy được câu hỏi.'); gmAct([{ label: 'Quay lại', fn: gmHome }]); return; }
       gmState(d.state); gmReset('Câu ' + (d.state.asked + 1)); $('gm-q').textContent = d.q;
       var box = $('gm-opts'), done = false;
@@ -1582,7 +1596,7 @@
       }
       d.o.forEach(function (txt, i) { var b = document.createElement('button'); b.type = 'button'; b.textContent = String.fromCharCode(65 + i) + '. ' + txt; b.addEventListener('click', function () { pick(i); }); box.appendChild(b); });
       gmRunTimer(d.seconds, function () { pick(-1); });
-    }).catch(function () { gmReset('Chưa kết nối được'); gmAct([{ label: 'Thử lại', fn: gmHome }]); })
+    }).catch(function (e) { gmReset('Chưa chơi được'); $('gm-fb').textContent = gmFailText(e); gmAct([{ label: 'Thử lại', fn: gmHome }]); })
     .then(function () { gmBusy = false; });
   }
   function gmDoor(st) {
@@ -1593,6 +1607,7 @@
   function gmPuzzle() {
     if (gmBusy) return; gmBusy = true;
     callServer({ action: 'puzzle_start', id: saved.id }).then(function (d) {
+      if (d && d.ok && !d.q) throw gmOld();
       if (!d || !d.ok) { gmReset(GM_ERR[d && d.error] || 'Chưa mở được cánh cửa.'); gmAct([{ label: 'Quay lại', fn: gmHome }]); return; }
       gmState(d.state); gmReset('120 giây. Bắt đầu!'); $('gm-q').textContent = d.q + (d.hint ? '\n\n💡 Gợi ý: ' + d.hint : '');
       var inp = $('gm-in'), sent = false; inp.hidden = false; setTimeout(function () { inp.focus(); }, 80);
@@ -1610,7 +1625,7 @@
       inp.onkeydown = function (e) { if (e.key === 'Enter') send(); };
       gmAct([{ label: 'Mở khóa', fn: send }]);
       gmRunTimer(d.seconds, send);
-    }).catch(function () { gmReset('Chưa kết nối được'); gmAct([{ label: 'Thử lại', fn: gmHome }]); })
+    }).catch(function (e) { gmReset('Chưa chơi được'); $('gm-fb').textContent = gmFailText(e); gmAct([{ label: 'Thử lại', fn: gmHome }]); })
     .then(function () { gmBusy = false; });
   }
   $('pf-game').addEventListener('click', function () { if (!saved) return; gmPrevOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; gmPop.hidden = false; gmHome(); });
@@ -2889,25 +2904,29 @@
 </script>
 
 <script>
-/* Face-scan login: matches the live camera against faces.json (made with enroll.html), then fills ID + name. */
+/* Face-scan login: so khớp camera trực tiếp với faces.json (tạo bằng enroll.html), rồi điền ID + tên.
+   Không còn đường chụp/chọn ảnh: chỉ camera trực tiếp. */
 (function () {
   'use strict';
   var LIB = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/dist/face-api.js';
   var MODELS = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.13/model/';
   var FACES_URL = 'faces.json';
-  var THRESHOLD = 0.5;      // lower = stricter
-  var MARGIN = 0.05;        // best match must beat the runner-up by this much
-  var NEED_HITS = 3;        // consecutive frames that agree
-  var TIMEOUT_MS = 25000;
+  var THRESHOLD = 0.5;      // nhỏ hơn = chặt hơn
+  var MARGIN = 0.05;        // người khớp nhất phải hơn người kế tiếp ít nhất bấy nhiêu
+  var NEED_HITS = 3;        // số khung hình liên tiếp phải cùng một người
+  var TIMEOUT_MS = 30000;
+  var AUTO_MS = 1400;       // thấy đúng người thì tự vào sau khoảng này (có nút hủy)
 
   var $ = function (id) { return document.getElementById(id); };
   var btn = $('face-btn'), ov = $('face-overlay'), vid = $('face-video'), frame = $('face-frame');
   var st = $('face-status'), act = $('face-actions');
   if (!btn || !ov) return;
 
-  var libPromise = null, faces = null, stream = null, running = false, modelsReady = false, token = 0;
+  var INAPP = /Zalo|FBAN|FBAV|FB_IAB|Instagram|MicroMessenger|TikTok|Line\//i.test(navigator.userAgent);
+  var libPromise = null, faces = null, stream = null, running = false, token = 0, autoT = 0;
 
   function say(t) { st.textContent = t; }
+  function ring(c) { frame.classList.remove('found', 'ok', 'bad'); if (c) frame.classList.add(c); }
   function actions(list) {
     act.textContent = '';
     list.forEach(function (a) {
@@ -2923,6 +2942,16 @@
       document.head.appendChild(s);
     });
   }
+  // Chạy thử một lần để trình duyệt biên dịch sẵn các mô hình, lần quét thật sẽ không bị khựng
+  function warm() {
+    try {
+      var f = window.faceapi, c = document.createElement('canvas'), x = c.getContext('2d');
+      c.width = c.height = 150; x.fillStyle = '#777'; x.fillRect(0, 0, 150, 150);
+      f.computeFaceDescriptor(c).catch(function () {});
+      f.nets.faceLandmark68Net.detectLandmarks(c).catch(function () {});
+      f.detectSingleFace(c, new f.TinyFaceDetectorOptions({ inputSize: 224 })).catch(function () {});
+    } catch (e) { /* bỏ qua */ }
+  }
   function prepare() {
     if (libPromise) return libPromise;
     libPromise = loadScript(LIB).then(function () {
@@ -2933,10 +2962,10 @@
         f.nets.faceRecognitionNet.loadFromUri(MODELS)
       ]);
     }).then(function () {
+      warm();
       return fetch(FACES_URL, { cache: 'no-store' }).then(function (r) { if (!r.ok) throw new Error('faces'); return r.json(); });
     }).then(function (j) {
       if (!Array.isArray(j) || !j.length) throw new Error('faces');
-      modelsReady = true;
       faces = j.map(function (p) {
         return { id: String(p.id), name: String(p.name), d: p.d.map(function (a) { return Float32Array.from(a); }) };
       });
@@ -2959,7 +2988,7 @@
     if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
     vid.srcObject = null;
   }
-  function close() { token++; stopCam(); ov.classList.remove('on'); }
+  function close() { token++; clearTimeout(autoT); stopCam(); ring(''); ov.classList.remove('on'); }
 
   function signIn(p) {
     close();
@@ -2970,111 +2999,88 @@
     var form = $('gate-form');
     if (form.requestSubmit) form.requestSubmit(); else form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
   }
-
+  // Kiểm tra cổng mở (máy chủ) rồi mới vào
   function enter(p) {
+    say('Đang đăng nhập…'); actions([]);
     if (!window.__faceGate) { signIn(p); return; }
-    say('Đang kiểm tra…'); actions([]);
     window.__faceGate(p.id).then(function (c) {
       if (c && window.__showLock) { close(); window.__showLock(c.openAt); } else signIn(p);
     });
   }
-  function confirmWho(p) {
-    say('Có phải bạn là ' + p.name + ' (ID ' + p.id + ')?');
-    actions([{ label: 'Đúng, vào luôn', primary: true, fn: function () { enter(p); } },
-             { label: 'Không phải tôi', fn: start }]);
+  function matched(p, my) {
+    running = false; frame.classList.remove('scan'); ring('ok');      // giữ camera chạy để khung hình vẫn sống
+    say('Xin chào, ' + p.name + '!');
+    actions([{ label: 'Không phải tôi', fn: start }]);
+    clearTimeout(autoT);
+    autoT = setTimeout(function () { if (my === token) enter(p); }, AUTO_MS);
   }
-  function failActions() {
-    return [{ label: 'Thử lại', primary: true, fn: start }, { label: 'Chụp ảnh để quét', fn: function () { pic.value = ''; pic.click(); } }, { label: 'Đóng', fn: close }];
+  function fail() {
+    stopCam(); ring('bad');
+    say('Không nhận ra bạn. Hãy thử lại ở nơi đủ sáng. Nếu bạn chưa có trong danh sách, hãy nhờ admin thêm khuôn mặt của bạn.');
+    actions([{ label: 'Thử lại', primary: true, fn: start }, { label: 'Đóng', fn: close }]);
   }
-  // Fallback for devices / in-app browsers that cannot open the live camera: take a selfie with the phone camera app, then scan it.
-  var pic = document.createElement('input');
-  pic.type = 'file'; pic.accept = 'image/*'; pic.setAttribute('capture', 'user'); pic.hidden = true;
-  document.body.appendChild(pic);
-  pic.addEventListener('change', function () {
-    var file = pic.files && pic.files[0]; if (!file) return;
-    ov.classList.add('on'); actions([{ label: 'Hủy', fn: close }]); say('Đang nhận diện ảnh…');
-    prepare().then(function () {
-      return new Promise(function (ok, bad) {
-        var url = URL.createObjectURL(file), im = new Image();
-        im.onload = function () { ok({ im: im, url: url }); };
-        im.onerror = function () { URL.revokeObjectURL(url); bad(new Error('img')); };
-        im.src = url;
-      });
-    }).then(function (o) {
-      var f = window.faceapi;
-      return f.detectSingleFace(o.im, new f.TinyFaceDetectorOptions({ inputSize: 512, scoreThreshold: 0.4 })).withFaceLandmarks().withFaceDescriptor().then(function (r) {
-        URL.revokeObjectURL(o.url);
-        var m = r ? match(r.descriptor) : null;
-        if (m) confirmWho(m);
-        else { say('Không nhận ra khuôn mặt trong ảnh. Hãy chụp thẳng mặt, đủ sáng.'); actions(failActions()); }
-      });
-    }).catch(function (e) {
-      say(String(e && e.message) === 'faces' ? 'Chưa có dữ liệu khuôn mặt. Hãy nhờ admin thêm khuôn mặt của bạn.' : 'Không xử lý được ảnh. Hãy thử lại.');
-      actions(failActions());
-    });
-  });
-  var INAPP = /Zalo|FBAN|FBAV|FB_IAB|Instagram|MicroMessenger|TikTok|Line\//i.test(navigator.userAgent);
 
-  function loop() {
+  function loop(my) {
     var f = window.faceapi, hits = 0, last = null, t0 = Date.now();
-    var opts = new f.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 });
-    frame.classList.add('scan'); say('Nhìn thẳng vào camera và giữ yên một chút…');
+    var opts = new f.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 });
+    frame.classList.add('scan'); ring(''); say('Đưa khuôn mặt vào giữa khung…');
     function tick() {
-      if (!running) return;
-      if (Date.now() - t0 > TIMEOUT_MS) {
-        stopCam(); say('Không nhận ra bạn. Hãy thử lại ở nơi đủ sáng. Nếu bạn chưa có trong danh sách, hãy nhờ admin thêm khuôn mặt của bạn.');
-        actions(failActions()); return;
-      }
+      if (!running || my !== token) return;
+      if (Date.now() - t0 > TIMEOUT_MS) { fail(); return; }
       f.detectSingleFace(vid, opts).withFaceLandmarks().withFaceDescriptor().then(function (r) {
-        if (!running) return;
-        var p = r ? match(r.descriptor) : null;
-        if (p && last && last.id === p.id) hits++; else hits = p ? 1 : 0;
-        last = p;
-        if (hits >= NEED_HITS) {
-          stopCam();
-          confirmWho(p); return;
+        if (!running || my !== token) return;
+        if (!r) { hits = 0; last = null; ring(''); say('Đưa khuôn mặt vào giữa khung…'); }
+        else {
+          ring('found');
+          var p = match(r.descriptor);
+          if (p && last && last.id === p.id) hits++; else hits = p ? 1 : 0;
+          last = p;
+          say(p ? 'Đang xác thực…' : 'Giữ yên và nhìn thẳng vào camera…');
+          if (hits >= NEED_HITS) { matched(p, my); return; }
         }
-        setTimeout(tick, 120);
-      }).catch(function () { setTimeout(tick, 400); });
+        requestAnimationFrame(tick);
+      }).catch(function () { setTimeout(tick, 300); });
     }
     tick();
   }
 
   function start() {
     var my = ++token;
+    clearTimeout(autoT); stopCam(); ring('');
     ov.classList.add('on'); actions([{ label: 'Hủy', fn: close }]);
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      say('Trình duyệt này không mở được camera trực tiếp' + (INAPP ? ' (trình duyệt trong ứng dụng thường chặn camera; bạn có thể mở link bằng Chrome/Safari)' : ' (cần HTTPS)') + '. Hãy dùng “Chụp ảnh để quét”.');
-      actions(failActions()); return;
+      say('Trình duyệt này không mở được camera' + (INAPP ? ' (trình duyệt trong ứng dụng thường chặn camera; hãy mở link bằng Chrome hoặc Safari)' : ' (cần HTTPS, hãy mở bằng Chrome hoặc Safari)') + '.');
+      actions([{ label: 'Đóng', primary: true, fn: close }]); return;
     }
     say('Đang mở camera…');
-    // Open the camera right away (inside the tap) and load the models in parallel.
+    // Mở camera ngay lúc bấm và tải mô hình song song
     var libP = prepare(); libP.catch(function () {});
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } }, audio: false })
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 480 }, height: { ideal: 480 } }, audio: false })
     .then(function (s) {
       if (my !== token || !ov.classList.contains('on')) { s.getTracks().forEach(function (t) { t.stop(); }); throw new Error('cancel'); }
       stream = s; vid.srcObject = s; running = true;
       return vid.play().catch(function () {});
     }).then(function () {
-      if (!modelsReady) say('Đang tải bộ nhận diện (lần đầu hơi lâu, vui lòng chờ)…');
+      say('Đang chuẩn bị nhận diện…');
       return libP;
-    }).then(function () { if (running && my === token) loop(); })
+    }).then(function () { if (running && my === token) loop(my); })
     .catch(function (e) {
       var m = String(e && e.message || e);
       if (m === 'cancel') return;
       stopCam();
       if (m === 'faces') { say('Chưa có dữ liệu khuôn mặt. Hãy nhờ admin thêm khuôn mặt của bạn.'); actions([{ label: 'Đóng', primary: true, fn: close }]); return; }
       if (m === 'script') say('Không tải được bộ nhận diện. Hãy kiểm tra mạng rồi thử lại.');
-      else if (e && e.name === 'NotAllowedError') say('Bạn chưa cho phép dùng camera. Hãy cấp quyền, hoặc dùng “Chụp ảnh để quét”.');
-      else say('Không mở được camera' + (INAPP ? ' (trình duyệt trong ứng dụng thường chặn camera; hãy mở link bằng Chrome/Safari)' : '') + '. Bạn có thể dùng “Chụp ảnh để quét”.');
-      actions(failActions());
+      else if (e && e.name === 'NotAllowedError') say('Bạn chưa cho phép dùng camera. Hãy cấp quyền camera cho trang này rồi thử lại.');
+      else say('Không mở được camera' + (INAPP ? ' (trình duyệt trong ứng dụng thường chặn camera; hãy mở link bằng Chrome hoặc Safari)' : '') + '.');
+      actions([{ label: 'Thử lại', primary: true, fn: start }, { label: 'Đóng', fn: close }]);
     });
   }
-  // Warm up the models in the background while the login screen is showing.
+
+  btn.addEventListener('click', start);
+  // Tải sẵn mô hình khi màn hình đăng nhập hiện, để lúc bấm quét gần như vào ngay
   window.addEventListener('load', function () {
     setTimeout(function () { if (btn.offsetParent !== null) prepare().catch(function () {}); }, 1200);
   });
-  btn.addEventListener('click', start);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && ov.classList.contains('on')) close(); });
 })();
 </script>
