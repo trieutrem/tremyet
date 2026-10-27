@@ -619,6 +619,20 @@
   @keyframes annRise { from{opacity:0; transform:translateY(24px) scale(.94)} to{opacity:1; transform:none} }
   @keyframes annSpin { from{opacity:0; transform:rotate(-90deg) scale(.6)} to{opacity:1; transform:none} }
   @media (prefers-reduced-motion: reduce) { .ann-pop, .ann-card, .ann-icon { animation:none; } }
+
+  /* Profile: level, XP, streak, badges */
+  .pf-card { margin:16px 0 4px; max-width:420px; padding:16px 18px; border-radius:18px; border:1px solid rgba(201,161,92,.4); background:linear-gradient(160deg, rgba(163,23,61,.28), rgba(20,6,12,.7)); display:grid; gap:9px; }
+  .pf-top { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
+  .pf-eyebrow { margin:0; font-size:.66rem; letter-spacing:.26em; text-transform:uppercase; color:var(--gold); }
+  .pf-level { margin:2px 0 0; font-size:1.35rem; color:var(--bone); }
+  .pf-xp { color:var(--gold); font-size:.85rem; white-space:nowrap; } .pf-xp b { font-size:1.5rem; }
+  .pf-bar { height:8px; border-radius:99px; background:rgba(239,220,210,.12); overflow:hidden; }
+  .pf-bar span { display:block; height:100%; width:0; border-radius:99px; background:linear-gradient(90deg,var(--wine),var(--gold)); transition:width .8s cubic-bezier(.2,1,.3,1); }
+  .pf-next, .pf-msg { margin:0; font-size:.82rem; color:var(--ash); } .pf-msg:empty { display:none; } .pf-msg { color:var(--gold); }
+  .pf-row { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .pf-streak { font-size:.9rem; color:var(--bone); }
+  .pf-badges { display:flex; flex-wrap:wrap; gap:6px; } .pf-badges:empty { display:none; }
+  .pf-badges span { padding:3px 11px; border-radius:99px; font-size:.74rem; color:var(--gold); border:1px solid rgba(201,161,92,.45); background:rgba(201,161,92,.08); }
 </style>
 </head>
 <body>
@@ -714,6 +728,14 @@
           <h1>Nồng ánh <em>Antares</em></h1>
           <p>Thiên Yết, đừng đẩy tôi vào lối ngỏ, lỏ nhỏ với nọc độc của toiiii.</p>
           <p class="personal-greeting" id="personal-greeting" hidden></p>
+          <div class="pf-card" id="pf-card" hidden>
+            <div class="pf-top"><div><p class="pf-eyebrow">Hồ sơ Thiên Yết</p><h3 class="pf-level" id="pf-level"></h3></div><div class="pf-xp"><b id="pf-xp">0</b> XP</div></div>
+            <div class="pf-bar" id="pf-bar" role="progressbar" aria-label="Tiến độ lên cấp" aria-valuemin="0" aria-valuemax="100"><span id="pf-fill"></span></div>
+            <p class="pf-next" id="pf-next"></p>
+            <div class="pf-row"><span class="pf-streak" id="pf-streak"></span><button class="btn" type="button" id="pf-checkin">Điểm danh +5 XP</button></div>
+            <p class="pf-msg" id="pf-msg" role="status" aria-live="polite"></p>
+            <div class="pf-badges" id="pf-badges"></div>
+          </div>
           <p class="fact">Antares là đại sao đỏ siêu khổng lồ.</p>
         </div>
         <div class="hero-sky" id="hero-sky" role="img" aria-label="Sơ đồ chòm sao Thiên Yết với sao Antares ở thân"></div>
@@ -1377,6 +1399,34 @@
   }
   uidEl.addEventListener('input', syncGate);
 
+  /* ---------- Hồ sơ: cấp bậc, XP, điểm danh (máy chủ tính điểm) ---------- */
+  var pfBusy = false;
+  function paintProfile(d) {
+    var lv = d.level || {}, span = lv.next ? lv.next - lv.min : 0, pct = span ? Math.min(100, Math.round((d.xp - lv.min) / span * 100)) : 100;
+    $('pf-level').textContent = lv.name || ''; $('pf-xp').textContent = d.xp;
+    $('pf-fill').style.width = pct + '%'; $('pf-bar').setAttribute('aria-valuenow', pct);
+    $('pf-next').textContent = lv.next ? 'Còn ' + (lv.next - d.xp) + ' XP để lên cấp tiếp theo' : 'Bạn đã đạt cấp cao nhất';
+    $('pf-streak').textContent = d.streak ? '🔥 Chuỗi ' + d.streak + ' ngày' : 'Chưa có chuỗi điểm danh';
+    var b = $('pf-checkin'); b.disabled = !!d.today; b.textContent = d.today ? 'Đã điểm danh hôm nay' : 'Điểm danh +' + (d.checkinXp || 5) + ' XP';
+    var box = $('pf-badges'); box.textContent = '';
+    (d.badges || []).forEach(function (n) { var sp = document.createElement('span'); sp.textContent = '✦ ' + n; box.appendChild(sp); });
+    $('pf-card').hidden = false;
+  }
+  function loadProfile() {
+    var who = saved; if (!who) return;
+    callServer({ action: 'profile', id: who.id, name: who.name }).then(function (d) { if (d && d.ok && saved === who) paintProfile(d); }).catch(function () { /* bỏ qua */ });
+  }
+  $('pf-checkin').addEventListener('click', function () {
+    var who = saved; if (!who || pfBusy) return;
+    pfBusy = true; $('pf-checkin').disabled = true; $('pf-msg').textContent = 'Đang điểm danh…';
+    callServer({ action: 'checkin', id: who.id, name: who.name }).then(function (d) {
+      if (!d || !d.ok) throw new Error('server');
+      if (saved === who) paintProfile(d);
+      $('pf-msg').textContent = d.already ? 'Hôm nay bạn đã điểm danh rồi.' : '✦ +' + d.gained + ' XP' + (d.milestone ? ' · Huy hiệu mới: ' + d.milestone : '');
+    }).catch(function () { $('pf-msg').textContent = 'Chưa điểm danh được. Hãy thử lại.'; $('pf-checkin').disabled = false; })
+    .then(function () { pfBusy = false; });
+  });
+
   // Ghi nhận tài khoản đã đăng nhập (admin xem trong mục "Tài khoản đã đăng nhập"). Mỗi lần mở trang chỉ gửi một lần.
   var loginTracked = false;
   function trackLogin() {
@@ -1387,6 +1437,7 @@
 
   function enterApp(animate) {
     trackLogin();
+    loadProfile();
     $('who').textContent = saved.name + ' · ID ' + saved.id;
     $('pname-show').value = saved.name;
     var greeting = $('personal-greeting');
@@ -1585,7 +1636,7 @@
     if (!winPop) return;
     $('win-prize').textContent = item;
     $('win-deliver').textContent = 'Quà sẽ được gửi qua ID ' + (saved ? saved.id : '') + ' vào lúc 00h00, ngày 14/11/2026.';
-    winPop.hidden = false; tickWin();
+    winPop.hidden = false; tickWin(); setTimeout(loadProfile, 1500);
     if (winTimer) clearInterval(winTimer);
     winTimer = setInterval(tickWin, 1000);
     setTimeout(function () { var b = $('win-close'); if (b) b.focus(); }, 50);
@@ -2094,7 +2145,7 @@
       if (!d || !d.ok) { var er = new Error('server'); er.code = d && d.error; throw er; }
       who.wished = true; if (saved === who) saveState(); else { accounts[keyOf(who.id)] = who; writeAccounts(); }
       wishMsg.textContent = '✦ Đã nhận lời chúc! Nội dung sẽ chỉ xuất hiện trong tài khoản này sau khi được duyệt.';
-      wishForm.hidden = true;
+      wishForm.hidden = true; setTimeout(loadProfile, 800);
       return loadWishes();
     }).catch(function (err) {
       wishMsg.textContent = 'Chưa gửi được. Hãy thử lại. Mã lỗi: ' + ((err && err.code) || 'unknown');
