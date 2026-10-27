@@ -633,6 +633,16 @@
   .pf-streak { font-size:.9rem; color:var(--bone); }
   .pf-badges { display:flex; flex-wrap:wrap; gap:6px; } .pf-badges:empty { display:none; }
   .pf-badges span { padding:3px 11px; border-radius:99px; font-size:.74rem; color:var(--gold); border:1px solid rgba(201,161,92,.45); background:rgba(201,161,92,.08); }
+
+  .pf-board { display:grid; gap:8px; margin-top:4px; padding-top:12px; border-top:1px solid rgba(201,161,92,.25); }
+  .pf-rows { list-style:none; margin:0; padding:0; display:grid; gap:6px; }
+  .pf-rows li { display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:12px; background:rgba(239,220,210,.05); border:1px solid transparent; font-size:.92rem; }
+  .pf-rows li.me { border-color:rgba(201,161,92,.6); background:rgba(201,161,92,.1); }
+  .pf-rows li.r1 { background:linear-gradient(90deg, rgba(242,193,78,.2), rgba(239,220,210,.05)); }
+  .pf-rank { flex:0 0 28px; display:grid; place-items:center; height:26px; font-size:.82rem; color:var(--ash); }
+  .pf-rank svg { width:26px; height:22px; filter:drop-shadow(0 0 6px rgba(255,255,255,.15)); }
+  .pf-nm { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--bone); }
+  .pf-sc { font-size:.82rem; color:var(--gold); white-space:nowrap; }
 </style>
 </head>
 <body>
@@ -735,6 +745,11 @@
             <div class="pf-row"><span class="pf-streak" id="pf-streak"></span><button class="btn" type="button" id="pf-checkin">Điểm danh +5 XP</button></div>
             <p class="pf-msg" id="pf-msg" role="status" aria-live="polite"></p>
             <div class="pf-badges" id="pf-badges"></div>
+            <div class="pf-board" id="pf-board" hidden>
+              <p class="pf-eyebrow">Bảng xếp hạng điểm danh</p>
+              <ol class="pf-rows" id="pf-rows"></ol>
+              <p class="pf-next" id="pf-me"></p>
+            </div>
           </div>
           <p class="fact">Antares là đại sao đỏ siêu khổng lồ.</p>
         </div>
@@ -1412,16 +1427,39 @@
     (d.badges || []).forEach(function (n) { var sp = document.createElement('span'); sp.textContent = '✦ ' + n; box.appendChild(sp); });
     $('pf-card').hidden = false;
   }
+  var CROWNS = { 1: '#f2c14e', 2: '#cfd6df', 3: '#c47f45' };   // vàng, bạc, đồng
+  function crownSvg(c) {
+    return '<svg viewBox="0 0 32 26" aria-hidden="true"><path d="M3 21 1.5 6.5l8 6.5L16 2l6.5 11 8-6.5L29 21z" fill="' + c + '" stroke="rgba(0,0,0,.35)" stroke-width="1"/><rect x="3" y="22" width="26" height="3" rx="1.5" fill="' + c + '" stroke="rgba(0,0,0,.35)" stroke-width="1"/></svg>';
+  }
+  function paintBoard(d) {
+    var ol = $('pf-rows'); ol.textContent = '';
+    (d.rows || []).forEach(function (r) {
+      var li = document.createElement('li'), rk = document.createElement('span'), nm = document.createElement('span'), sc = document.createElement('span');
+      li.className = (r.me ? 'me ' : '') + (r.rank === 1 ? 'r1' : '');
+      rk.className = 'pf-rank';
+      if (CROWNS[r.rank]) { rk.innerHTML = crownSvg(CROWNS[r.rank]); rk.setAttribute('aria-label', 'Hạng ' + r.rank); } else rk.textContent = r.rank;
+      nm.className = 'pf-nm'; nm.textContent = r.name + (r.me ? ' (bạn)' : '');
+      sc.className = 'pf-sc'; sc.textContent = '🔥 ' + r.streak + ' ngày';
+      li.appendChild(rk); li.appendChild(nm); li.appendChild(sc); ol.appendChild(li);
+    });
+    var me = d.me;
+    $('pf-me').textContent = me ? (me.rank <= 10 ? 'Bạn đang ở hạng ' + me.rank + '/' + d.total + '.' : 'Bạn đang ở hạng ' + me.rank + '/' + d.total + ' · chuỗi ' + me.streak + ' ngày.') : 'Điểm danh để có tên trên bảng xếp hạng.';
+    $('pf-board').hidden = false;
+  }
+  function loadBoard() {
+    var who = saved; if (!who) return;
+    callServer({ action: 'board', id: who.id, name: who.name }).then(function (d) { if (d && d.ok && saved === who) paintBoard(d); }).catch(function () { /* bỏ qua */ });
+  }
   function loadProfile() {
     var who = saved; if (!who) return;
-    callServer({ action: 'profile', id: who.id, name: who.name }).then(function (d) { if (d && d.ok && saved === who) paintProfile(d); }).catch(function () { /* bỏ qua */ });
+    callServer({ action: 'profile', id: who.id, name: who.name }).then(function (d) { if (d && d.ok && saved === who) { paintProfile(d); loadBoard(); } }).catch(function () { /* bỏ qua */ });
   }
   $('pf-checkin').addEventListener('click', function () {
     var who = saved; if (!who || pfBusy) return;
     pfBusy = true; $('pf-checkin').disabled = true; $('pf-msg').textContent = 'Đang điểm danh…';
     callServer({ action: 'checkin', id: who.id, name: who.name }).then(function (d) {
       if (!d || !d.ok) throw new Error('server');
-      if (saved === who) paintProfile(d);
+      if (saved === who) { paintProfile(d); loadBoard(); }
       $('pf-msg').textContent = d.already ? 'Hôm nay bạn đã điểm danh rồi.' : '✦ +' + d.gained + ' XP' + (d.milestone ? ' · Huy hiệu mới: ' + d.milestone : '');
     }).catch(function () { $('pf-msg').textContent = 'Chưa điểm danh được. Hãy thử lại.'; $('pf-checkin').disabled = false; })
     .then(function () { pfBusy = false; });
@@ -2677,8 +2715,25 @@
     birthdayMusic.setAttribute('aria-label', 'Phát lại nhạc sinh nhật');
   });
 
+  /* ---------- Chưa đến ngày mở cổng (07/11/2026): chỉ ID được phép sớm mới vào ---------- */
+  var OPEN_MS = new Date('2026-11-07T00:00:00+07:00').getTime();
+  function showLock(openAt) {
+    var at = Number(openAt) > 0 ? Number(openAt) : OPEN_MS;
+    closeAnn();
+    showAnn('lock', 'Trang sẽ mở cho mọi người từ ' + annStamp(at) + '.\nBạn quay lại vào ngày đó để đăng nhập nhé!', '', 0, 'Chưa đến ngày mở cổng');
+  }
+  window.__showLock = showLock;
+  window.__faceGate = function (id) {
+    return callServer({ action: 'lookup', id: id }).then(function (d) { return d && d.error === 'closed' ? d : null; }).catch(function () { return null; });
+  };
+
   /* ---------- Returning visitor: skip the gate ---------- */
-  if (saved) enterApp(false); else loadInfo();
+  if (saved && Date.now() < OPEN_MS) {
+    callServer({ action: 'status', id: saved.id }).then(function (d) {
+      if (d && d.error === 'closed') { app.hidden = true; gate.hidden = false; showLock(d.openAt); }
+      else enterApp(false);
+    }).catch(function () { enterApp(false); });
+  } else if (saved) enterApp(false); else loadInfo();
 })();
 </script>
 
@@ -2765,9 +2820,16 @@
     if (form.requestSubmit) form.requestSubmit(); else form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
   }
 
+  function enter(p) {
+    if (!window.__faceGate) { signIn(p); return; }
+    say('Đang kiểm tra…'); actions([]);
+    window.__faceGate(p.id).then(function (c) {
+      if (c && window.__showLock) { close(); window.__showLock(c.openAt); } else signIn(p);
+    });
+  }
   function confirmWho(p) {
     say('Có phải bạn là ' + p.name + ' (ID ' + p.id + ')?');
-    actions([{ label: 'Đúng, vào luôn', primary: true, fn: function () { signIn(p); } },
+    actions([{ label: 'Đúng, vào luôn', primary: true, fn: function () { enter(p); } },
              { label: 'Không phải tôi', fn: start }]);
   }
   function failActions() {
