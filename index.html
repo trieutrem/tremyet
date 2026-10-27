@@ -742,7 +742,7 @@
             <div class="pf-top"><div><p class="pf-eyebrow">Hồ sơ Thiên Yết</p><h3 class="pf-level" id="pf-level"></h3></div><div class="pf-xp"><b id="pf-xp">0</b> XP</div></div>
             <div class="pf-bar" id="pf-bar" role="progressbar" aria-label="Tiến độ lên cấp" aria-valuemin="0" aria-valuemax="100"><span id="pf-fill"></span></div>
             <p class="pf-next" id="pf-next"></p>
-            <div class="pf-row"><span class="pf-streak" id="pf-streak"></span><button class="btn" type="button" id="pf-checkin">Điểm danh +5 XP</button></div>
+            <div class="pf-row"><span class="pf-streak" id="pf-streak"></span><button class="btn" type="button" id="pf-checkin" disabled>Điểm danh +5 XP</button></div>
             <p class="pf-msg" id="pf-msg" role="status" aria-live="polite"></p>
             <div class="pf-badges" id="pf-badges"></div>
             <div class="pf-board" id="pf-board" hidden>
@@ -1415,14 +1415,29 @@
   uidEl.addEventListener('input', syncGate);
 
   /* ---------- Hồ sơ: cấp bậc, XP, điểm danh (máy chủ tính điểm) ---------- */
-  var pfBusy = false;
+  var pfBusy = false, pfTimer = 0;
+  // Sau 00h giờ Việt Nam mỗi ngày mới điểm danh lại được. Đếm ngược đến 00h kế tiếp, hết giờ thì hỏi lại máy chủ.
+  function pfCountdown(on) {
+    if (pfTimer) { clearInterval(pfTimer); pfTimer = 0; }
+    if (!on) return;
+    var b = $('pf-checkin'), DAY = 86400000, VN = 7 * 3600000;
+    function tick() {
+      var now = Date.now() + (typeof annSkew === 'number' ? annSkew : 0);
+      var left = (Math.floor((now + VN) / DAY) + 1) * DAY - VN - now;
+      if (left <= 0) { clearInterval(pfTimer); pfTimer = 0; b.textContent = 'Đang mở lại…'; loadProfile(); return; }
+      var t = Math.floor(left / 1000), p = function (x) { return (x < 10 ? '0' : '') + x; };
+      b.textContent = 'Đã điểm danh · mở lại sau ' + p(Math.floor(t / 3600)) + ':' + p(Math.floor(t % 3600 / 60)) + ':' + p(t % 60);
+    }
+    tick(); if (!pfTimer) pfTimer = setInterval(tick, 1000);
+  }
   function paintProfile(d) {
     var lv = d.level || {}, span = lv.next ? lv.next - lv.min : 0, pct = span ? Math.min(100, Math.round((d.xp - lv.min) / span * 100)) : 100;
     $('pf-level').textContent = lv.name || ''; $('pf-xp').textContent = d.xp;
     $('pf-fill').style.width = pct + '%'; $('pf-bar').setAttribute('aria-valuenow', pct);
     $('pf-next').textContent = lv.next ? 'Còn ' + (lv.next - d.xp) + ' XP để lên cấp tiếp theo' : 'Bạn đã đạt cấp cao nhất';
     $('pf-streak').textContent = d.streak ? '🔥 Chuỗi ' + d.streak + ' ngày' : 'Chưa có chuỗi điểm danh';
-    var b = $('pf-checkin'); b.disabled = !!d.today; b.textContent = d.today ? 'Đã điểm danh hôm nay' : 'Điểm danh +' + (d.checkinXp || 5) + ' XP';
+    var b = $('pf-checkin'); b.disabled = !!d.today; b.textContent = 'Điểm danh +' + (d.checkinXp || 5) + ' XP';
+    pfCountdown(!!d.today);
     var box = $('pf-badges'); box.textContent = '';
     (d.badges || []).forEach(function (n) { var sp = document.createElement('span'); sp.textContent = '✦ ' + n; box.appendChild(sp); });
     $('pf-card').hidden = false;
