@@ -79,6 +79,7 @@
     <div class="top">
       <div class="stats">
         <div class="stat"><b id="s-acc">0</b>tài khoản</div>
+        <div class="stat"><b id="s-dream">0</b>điều ước chờ</div>
         <div class="stat"><b id="s-total">0</b>lượt quay</div>
         <div class="stat"><b id="s-given">0</b>đã trao</div>
         <div class="stat"><b id="s-wish">0</b>lời chúc chờ duyệt</div>
@@ -123,6 +124,11 @@
     <h2>Yêu cầu cấp thêm lượt</h2>
     <div class="tools"><label class="chk"><input type="checkbox" id="only-req" checked> Chỉ chưa xử lý</label></div>
     <ul class="rows" id="reqs"></ul>
+
+    <h2>Ước nguyện Antares</h2>
+    <p class="m hintline">Người chơi chưa đúng đủ 13 câu có thể ước thêm XP. Bạn quyết định cho bao nhiêu (có thể ít hơn họ ước, hoặc từ chối). XP được cộng thẳng vào hồ sơ của họ.</p>
+    <div class="tools"><label class="chk"><input type="checkbox" id="only-dream" checked> Chỉ chưa xử lý</label></div>
+    <ul class="rows" id="dreams"></ul>
 
     <h2>Người trúng thưởng</h2>
     <div class="tools">
@@ -201,7 +207,48 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
   }
 
+  function renderDreams() {
+    var ul = $('dreams'), only = $('only-dream').checked, shown = 0, pending = 0;
+    ul.textContent = '';
+    (data.dreams || []).forEach(function (r) { if (r.status === 'wait') pending++; });
+    $('s-dream').textContent = pending;
+    (data.dreams || []).forEach(function (r) {
+      if (only && r.status !== 'wait') return;
+      shown++;
+      var li = el('li', 'req'), info = el('div', 'info');
+      info.appendChild(el('div', 't reason', r.text || '(không ghi lời ước)'));
+      info.appendChild(el('div', 'm', r.name + ' · ID ' + r.id + ' · ' + r.time + ' · ước ' + r.ask + ' XP'));
+      li.appendChild(info);
+      var acts = el('div', 'acts');
+      if (r.status === 'wait') {
+        var qty = el('input', 'qty'); qty.type = 'number'; qty.min = 1; qty.max = 500; qty.value = r.ask; qty.step = 1; qty.setAttribute('aria-label', 'Số XP cho');
+        var ok = el('button', 'btn', 'Cho XP'), no = el('button', 'btn ghost', 'Từ chối');
+        ok.type = 'button'; no.type = 'button';
+        function lock(v) { ok.disabled = v; no.disabled = v; qty.disabled = v; }
+        ok.addEventListener('click', function () {
+          var n = Math.floor(Number(qty.value));
+          if (!(n >= 1 && n <= 500)) { $('msg2').textContent = 'Nhập số XP từ 1 đến 500.'; qty.focus(); return; }
+          lock(true); decideDream('admin_dream_grant', r, n, function () { lock(false); });
+        });
+        no.addEventListener('click', function () { lock(true); decideDream('admin_dream_deny', r, 0, function () { lock(false); }); });
+        acts.appendChild(qty); acts.appendChild(el('span', 'm', 'XP')); acts.appendChild(ok); acts.appendChild(no);
+      } else if (r.status === 'ok') acts.appendChild(el('span', 'badge ok', 'Đã cho ' + r.grant + ' XP'));
+      else acts.appendChild(el('span', 'badge', 'Đã từ chối'));
+      li.appendChild(acts); ul.appendChild(li);
+    });
+    if (!shown) ul.appendChild(el('li', 'empty', 'Không có điều ước nào.'));
+  }
+  function decideDream(action, item, value, done) {
+    $('msg2').textContent = '';
+    call({ action: action, row: item.row, id: item.id, value: value }).then(function (d) {
+      if (!d || !d.ok) { $('msg2').textContent = errText(d); if (d && d.error === 'done') load(); return; }
+      if (action === 'admin_dream_grant') { item.status = 'ok'; item.grant = value; } else { item.status = 'no'; item.grant = 0; }
+      renderDreams();
+    }).catch(function () { $('msg2').textContent = 'Không kết nối được máy chủ.'; }).then(done);
+  }
+
   function render() {
+    renderDreams();
     var reqs = $('reqs'), reqOnly = $('only-req').checked, pendingReq = 0, shownReq = 0;
     reqs.textContent = '';
     (data.requests || []).forEach(function (r) { if (r.status === 'wait') pendingReq++; });
@@ -362,6 +409,7 @@
   $('only-open').addEventListener('change', render);
   $('only-wait').addEventListener('change', render);
   $('only-req').addEventListener('change', render);
+  $('only-dream').addEventListener('change', renderDreams);
   $('acc-q').addEventListener('input', renderAccounts);
   $('acc-sort').addEventListener('change', renderAccounts);
   $('csv-accs').addEventListener('click', function () {

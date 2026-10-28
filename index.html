@@ -685,6 +685,9 @@
   .gm-q.swap, .gm-opts.swap { animation:gmSlide .28s ease both; }
   @keyframes gmSlide { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
   @media (prefers-reduced-motion: reduce) { .gm-q.swap, .gm-opts.swap { animation:none; } }
+  .gm-ta { width:100%; resize:none; padding:12px 14px; border-radius:14px; border:1px solid rgba(201,161,92,.5); background:rgba(0,0,0,.3); color:var(--bone); font:inherit; line-height:1.5; }
+  .gm-ta:focus { outline:none; border-color:var(--gold); }
+  .gm-in.dream { border-color:rgba(201,161,92,.6); font-size:1.2rem; }
 </style>
 </head>
 <body>
@@ -732,6 +735,7 @@
     <p class="gm-q" id="gm-q"></p>
     <div class="gm-opts" id="gm-opts"></div>
     <input class="gm-in" id="gm-in" type="text" inputmode="text" autocomplete="off" autocapitalize="off" maxlength="20" placeholder="Nhập đáp án" hidden aria-label="Đáp án">
+    <textarea class="gm-ta" id="gm-ta" maxlength="140" rows="3" placeholder="Lời ước của bạn (không bắt buộc)" hidden aria-label="Lời ước"></textarea>
     <p class="gm-fb" id="gm-fb" role="status" aria-live="polite"></p>
     <div class="gm-actions" id="gm-actions"></div>
   </div>
@@ -1524,9 +1528,14 @@
     var who = saved; if (!who) return;
     callServer({ action: 'board', id: who.id, name: who.name }).then(function (d) { if (d && d.ok && saved === who) paintBoard(d); }).catch(function () { /* bỏ qua */ });
   }
+  function dreamNotice(n, who) {
+    if (!n) return;
+    $('pf-msg').textContent = n.status === 'ok' ? '✦ Antares đã chấp nhận điều ước của bạn: +' + n.grant + ' XP!' : 'Antares chưa chấp nhận điều ước lần này. Mai hãy thử sức tiếp nhé.';
+    callServer({ action: 'dream_ack', id: who.id }).catch(function () { /* bỏ qua */ });
+  }
   function loadProfile() {
     var who = saved; if (!who) return;
-    callServer({ action: 'profile', id: who.id, name: who.name }).then(function (d) { if (d && d.ok && typeof d.xp === 'number' && saved === who) { paintProfile(d); loadBoard(); } }).catch(function () { /* bỏ qua */ });
+    callServer({ action: 'profile', id: who.id, name: who.name }).then(function (d) { if (d && d.ok && typeof d.xp === 'number' && saved === who) { paintProfile(d); loadBoard(); dreamNotice(d.dreamNotice, who); } }).catch(function () { /* bỏ qua */ });
   }
   $('pf-checkin').addEventListener('click', function () {
     var who = saved; if (!who || pfBusy) return;
@@ -1541,7 +1550,7 @@
 
   /* ---------- Thử thách Antares: đố vui (130 XP) + cánh cửa cuối (20 XP). Máy chủ giữ đáp án và tính điểm ---------- */
   var gmPop = $('gm-pop'), gmCard = $('gm-card'), gmTimer = 0, gmBusy = false;
-  var GM_ERR = { expired: 'Hết thời gian xử lý câu này. Hãy bắt đầu lại.', full: 'Hôm nay bạn đã đủ 130 XP đố vui.', spent: 'Hôm nay bạn đã dùng hết số câu hỏi.', locked: 'Cần đủ 130 XP đố vui để mở cánh cửa cuối.', solved: 'Bạn đã vượt qua cánh cửa cuối hôm nay.', notries: 'Hôm nay bạn đã hết lượt thử cánh cửa cuối.' };
+  var GM_ERR = { expired: 'Hết thời gian xử lý câu này. Hãy bắt đầu lại.', full: 'Hôm nay bạn đã đúng cả 13 câu.', spent: 'Hôm nay bạn đã trả lời đủ 13 câu.', dnum: 'Hãy nhập số XP từ 1 đến 150.', dearly: 'Hãy trả lời đủ 13 câu trước khi ước nguyện.', dperfect: 'Bạn đã đúng cả 13 câu, hãy thử cánh cửa cuối.', dhas: 'Hôm nay bạn đã gửi điều ước rồi.', locked: 'Cần đủ 130 XP đố vui để mở cánh cửa cuối.', solved: 'Bạn đã vượt qua cánh cửa cuối hôm nay.', notries: 'Hôm nay bạn đã hết lượt thử cánh cửa cuối.' };
   function gmFailText(e) {
     var c = String(e && (e.code || e.message) || '');
     if (c === 'old') return 'Trò chơi chưa sẵn sàng trên máy chủ. Chủ trang cần cập nhật Apps Script (dán lại crip.txt rồi triển khai phiên bản mới).';
@@ -1566,9 +1575,9 @@
   function gmState(st) {
     if (!st) return;
     $('gm-fill').style.width = Math.round(st.total / st.totalCap * 100) + '%';
-    $('gm-prog').textContent = 'Hôm nay: ' + st.total + '/' + st.totalCap + ' XP · đố vui ' + st.xp + '/' + st.cap + ' · cánh cửa cuối ' + st.pxp + '/' + st.pcap;
+    $('gm-prog').textContent = 'Hôm nay: ' + st.total + '/' + st.totalCap + ' XP · đã trả lời ' + st.asked + '/' + st.maxAsked + ' câu · cánh cửa cuối ' + st.pxp + '/' + st.pcap;
   }
-  function gmReset(title) { gmStopTimer(); $('gm-title').textContent = title; $('gm-q').textContent = ''; $('gm-opts').textContent = ''; $('gm-in').hidden = true; $('gm-in').value = ''; $('gm-fb').textContent = ''; gmAct([]); }
+  function gmReset(title) { gmStopTimer(); $('gm-title').textContent = title; $('gm-q').textContent = ''; $('gm-opts').textContent = ''; $('gm-in').hidden = true; $('gm-in').value = ''; $('gm-in').classList.remove('dream'); $('gm-ta').hidden = true; $('gm-ta').value = ''; $('gm-fb').textContent = ''; gmAct([]); }
   function gmClose() { gmSess++; clearTimeout(gmAuto); gmStopTimer(); gmPop.hidden = true; document.body.style.overflow = gmPrevOverflow; loadProfile(); }
   var gmPrevOverflow = '';
   function gmHome() {
@@ -1576,19 +1585,55 @@
     callServer({ action: 'game_state', id: saved.id }).then(function (st) {
       if (!st || !st.ok || typeof st.total !== 'number') throw gmOld(); gmState(st);
       if (st.total >= st.totalCap) { gmReset('Trọn vẹn 150 XP!'); $('gm-fb').textContent = 'Hôm nay bạn đã lấy đủ điểm. Mai quay lại thử sức tiếp nhé.'; gmAct([{ label: 'Đóng', fn: gmClose }]); return; }
-      if (!st.unlocked) {
-        gmReset('Đố vui thiên hà'); $('gm-q').textContent = 'Trả lời đúng mỗi câu +10 XP (tối đa 130 XP/ngày). Mỗi câu có 20 giây, được sai tối đa 3 câu. Đủ 130 XP sẽ mở cánh cửa cuối cùng.';
-        gmAct([{ label: st.asked ? 'Chơi tiếp' : 'Bắt đầu', fn: gmNext }]);
-      } else if (!st.solved && st.triesLeft > 0) gmDoor(st);
-      else { gmReset('Hết lượt hôm nay'); $('gm-fb').textContent = st.solved ? 'Bạn đã vượt qua cánh cửa cuối.' : 'Cánh cửa cuối đã khép lại cho hôm nay. Mai thử lại nhé.'; gmAct([{ label: 'Đóng', fn: gmClose }]); }
+      if (!st.finished) {
+        gmReset('Đố vui thiên hà'); $('gm-q').textContent = 'Mỗi ngày có đúng 13 câu, đúng hay sai đều tính. Mỗi câu đúng +10 XP, mỗi câu 20 giây.\nĐúng cả 13 câu để mở cánh cửa cuối cùng (+20 XP). Chưa đủ thì bạn vẫn có thể gửi Ước nguyện Antares.';
+        gmAct([{ label: st.asked ? 'Chơi tiếp (câu ' + (st.asked + 1) + ')' : 'Bắt đầu', fn: gmNext }]);
+      } else if (st.unlocked) {
+        if (!st.solved && st.triesLeft > 0) gmDoor(st);
+        else { gmReset('Hết lượt hôm nay'); $('gm-fb').textContent = st.solved ? 'Bạn đã vượt qua cánh cửa cuối.' : 'Cánh cửa cuối đã khép lại cho hôm nay. Mai thử lại nhé.'; gmAct([{ label: 'Đóng', fn: gmClose }]); }
+      } else gmDreamHome(st);
     }).catch(function (e) { gmReset('Chưa chơi được'); $('gm-fb').textContent = gmFailText(e); gmAct([{ label: 'Thử lại', fn: gmHome }, { label: 'Đóng', ghost: true, fn: gmClose }]); });
+  }
+  // Đã trả lời đủ 13 câu nhưng chưa đủ 130 XP: không có cánh cửa cuối, được gửi điều ước tới Antares
+  function gmDreamHome(st) {
+    var dr = st.dream, right = Math.round(st.xp / 10);
+    gmReset('Bạn đúng ' + right + '/' + st.maxAsked + ' câu');
+    if (dr) {
+      $('gm-q').textContent = dr.status === 'ok' ? '✦ Antares đã chấp nhận điều ước của bạn: +' + dr.grant + ' XP!'
+        : dr.status === 'no' ? 'Lần này Antares chưa chấp nhận điều ước của bạn. Mai hãy thử sức tiếp nhé.'
+        : 'Điều ước ' + dr.ask + ' XP của bạn đã bay lên Antares và đang chờ chủ trang xem xét. Quay lại sau để biết kết quả nhé.';
+      gmAct([{ label: 'Đóng', fn: gmClose }]);
+    } else {
+      $('gm-q').textContent = 'Bạn chưa đúng cả 13 câu nên cánh cửa cuối cùng chưa mở.\nHãy gửi một Ước nguyện tới Antares: ước thêm bao nhiêu XP, chủ trang sẽ quyết định cho bạn bao nhiêu.';
+      gmAct([{ label: '✦ Ước nguyện Antares', fn: function () { gmDream(); } }, { label: 'Đóng', ghost: true, fn: gmClose }]);
+    }
+  }
+  function gmDream() {
+    gmReset('Bạn ước thêm bao nhiêu XP?'); $('gm-eyebrow').textContent = 'Ước nguyện Antares';
+    var inp = $('gm-in'), ta = $('gm-ta'), sent = false;
+    inp.classList.add('dream'); inp.placeholder = 'Số XP bạn ước (1–150)'; inp.setAttribute('inputmode', 'numeric'); inp.hidden = false; ta.hidden = false;
+    $('gm-q').textContent = 'Chủ trang sẽ xem điều ước và quyết định cho bạn bao nhiêu XP (có thể ít hơn bạn ước). Mỗi ngày được ước một lần.';
+    setTimeout(function () { inp.focus(); }, 80);
+    function send() {
+      if (sent) return;
+      var n = Math.floor(Number(inp.value));
+      if (!(n >= 1 && n <= 150)) { $('gm-fb').textContent = GM_ERR.dnum; inp.focus(); return; }
+      sent = true; $('gm-fb').textContent = 'Đang gửi điều ước…'; gmAct([]);
+      callServer({ action: 'dream_make', id: saved.id, name: saved.name, points: n, text: ta.value }).then(function (r) {
+        if (!r || !r.ok) { $('gm-fb').textContent = GM_ERR[r && r.error] || 'Chưa gửi được điều ước.'; gmAct([{ label: 'Quay lại', fn: gmHome }]); return; }
+        gmReset('Điều ước đã bay đi ✦'); $('gm-eyebrow').textContent = 'Ước nguyện Antares';
+        $('gm-fb').textContent = 'Bạn ước thêm ' + r.ask + ' XP. Chủ trang sẽ xem và quyết định. Quay lại sau để biết kết quả nhé.'; gmAct([{ label: 'Đóng', fn: gmClose }]);
+      }).catch(function (e) { sent = false; $('gm-fb').textContent = gmFailText(e); gmAct([{ label: 'Thử lại', fn: gmDream }, { label: 'Đóng', ghost: true, fn: gmClose }]); });
+    }
+    inp.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); send(); } };
+    gmAct([{ label: 'Gửi điều ước', fn: send }, { label: 'Quay lại', ghost: true, fn: gmHome }]);
   }
   var gmSess = 0, gmAuto = 0;
   function gmSwap() { ['gm-q', 'gm-opts'].forEach(function (id) { var e = $(id); e.classList.remove('swap'); void e.offsetWidth; e.classList.add('swap'); }); }
   // Hiện một câu hỏi (d: {q, o, seconds, state}). Câu kế tiếp đã đi kèm kết quả của câu trước nên không phải chờ thêm.
   function gmShowQ(d, my) {
     if (my !== gmSess) return;
-    gmState(d.state); gmReset('Câu ' + (d.state.asked + 1)); $('gm-q').textContent = d.q;
+    gmState(d.state); gmReset('Câu ' + (d.state.asked + 1) + '/' + d.state.maxAsked); $('gm-q').textContent = d.q;
     var box = $('gm-opts'), done = false;
     function pick(i) {
       if (done) return; done = true; gmStopTimer();
@@ -1629,7 +1674,7 @@
   }
   function gmDoor(st) {
     gmCard.classList.add('final'); $('gm-eyebrow').textContent = 'Cánh cửa cuối cùng'; gmReset('Chỉ một cơ hội cho mỗi lượt');
-    gmState(st); $('gm-q').textContent = 'Bạn đã đủ 130 XP. Vượt qua câu đố trí tuệ siêu khó trong 120 giây để nhận 20 XP cuối.\nBạn còn ' + st.triesLeft + ' lượt thử. Bấm mở cửa là tính một lượt.';
+    gmState(st); $('gm-q').textContent = 'Bạn đã đúng cả 13 câu. Vượt qua câu đố trí tuệ siêu khó trong 120 giây để nhận 20 XP cuối.\nBạn còn ' + st.triesLeft + ' lượt thử. Bấm mở cửa là tính một lượt.';
     gmAct([{ label: 'Mở cánh cửa', fn: gmPuzzle }, { label: 'Để sau', ghost: true, fn: gmClose }]);
   }
   function gmPuzzle() {
@@ -1638,7 +1683,7 @@
       if (d && d.ok && !d.q) throw gmOld();
       if (!d || !d.ok) { gmReset(GM_ERR[d && d.error] || 'Chưa mở được cánh cửa.'); gmAct([{ label: 'Quay lại', fn: gmHome }]); return; }
       gmState(d.state); gmReset('120 giây. Bắt đầu!'); $('gm-q').textContent = d.q + (d.hint ? '\n\n💡 Gợi ý: ' + d.hint : '');
-      var inp = $('gm-in'), sent = false; inp.hidden = false; setTimeout(function () { inp.focus(); }, 80);
+      var inp = $('gm-in'), sent = false; inp.placeholder = 'Nhập đáp án'; inp.setAttribute('inputmode', 'text'); inp.hidden = false; setTimeout(function () { inp.focus(); }, 80);
       function send() {
         if (sent) return; sent = true; gmStopTimer(); inp.disabled = true;
         callServer({ action: 'puzzle_answer', id: saved.id, name: saved.name, answer: inp.value }).then(function (r) {
