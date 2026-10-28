@@ -677,6 +677,14 @@
   .face-frame.found { border-color:#e8c27a; }
   .face-frame.ok { border-color:#58c27d; box-shadow:0 0 70px rgba(88,194,125,.45); }
   .face-frame.bad { border-color:#f0405a; box-shadow:0 0 60px rgba(240,64,90,.35); }
+
+  .gm-opts button { touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
+  .gm-opts button:active:not(:disabled) { transform:scale(.98); }
+  .gm-opts button.sel { border-color:var(--gold); background:rgba(201,161,92,.18); }
+  .gm-opts button:disabled { cursor:default; }
+  .gm-q.swap, .gm-opts.swap { animation:gmSlide .28s ease both; }
+  @keyframes gmSlide { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce) { .gm-q.swap, .gm-opts.swap { animation:none; } }
 </style>
 </head>
 <body>
@@ -1561,7 +1569,7 @@
     $('gm-prog').textContent = 'Hôm nay: ' + st.total + '/' + st.totalCap + ' XP · đố vui ' + st.xp + '/' + st.cap + ' · cánh cửa cuối ' + st.pxp + '/' + st.pcap;
   }
   function gmReset(title) { gmStopTimer(); $('gm-title').textContent = title; $('gm-q').textContent = ''; $('gm-opts').textContent = ''; $('gm-in').hidden = true; $('gm-in').value = ''; $('gm-fb').textContent = ''; gmAct([]); }
-  function gmClose() { gmStopTimer(); gmPop.hidden = true; document.body.style.overflow = gmPrevOverflow; loadProfile(); }
+  function gmClose() { gmSess++; clearTimeout(gmAuto); gmStopTimer(); gmPop.hidden = true; document.body.style.overflow = gmPrevOverflow; loadProfile(); }
   var gmPrevOverflow = '';
   function gmHome() {
     gmCard.classList.remove('final'); $('gm-eyebrow').textContent = 'Thử thách Antares'; gmReset('Đang tải…');
@@ -1575,27 +1583,47 @@
       else { gmReset('Hết lượt hôm nay'); $('gm-fb').textContent = st.solved ? 'Bạn đã vượt qua cánh cửa cuối.' : 'Cánh cửa cuối đã khép lại cho hôm nay. Mai thử lại nhé.'; gmAct([{ label: 'Đóng', fn: gmClose }]); }
     }).catch(function (e) { gmReset('Chưa chơi được'); $('gm-fb').textContent = gmFailText(e); gmAct([{ label: 'Thử lại', fn: gmHome }, { label: 'Đóng', ghost: true, fn: gmClose }]); });
   }
+  var gmSess = 0, gmAuto = 0;
+  function gmSwap() { ['gm-q', 'gm-opts'].forEach(function (id) { var e = $(id); e.classList.remove('swap'); void e.offsetWidth; e.classList.add('swap'); }); }
+  // Hiện một câu hỏi (d: {q, o, seconds, state}). Câu kế tiếp đã đi kèm kết quả của câu trước nên không phải chờ thêm.
+  function gmShowQ(d, my) {
+    if (my !== gmSess) return;
+    gmState(d.state); gmReset('Câu ' + (d.state.asked + 1)); $('gm-q').textContent = d.q;
+    var box = $('gm-opts'), done = false;
+    function pick(i) {
+      if (done) return; done = true; gmStopTimer();
+      [].forEach.call(box.children, function (b, k) { b.disabled = true; if (k === i) b.classList.add('sel'); });
+      $('gm-fb').textContent = 'Đang chấm…';
+      callServer({ action: 'game_answer', id: saved.id, name: saved.name, choice: i }).then(function (r) {
+        if (my !== gmSess) return;
+        if (!r || !r.ok) { $('gm-fb').textContent = GM_ERR[r && r.error] || 'Chưa ghi nhận được câu trả lời.'; gmAct([{ label: 'Quay lại', fn: gmHome }]); return; }
+        [].forEach.call(box.children, function (b) { b.classList.remove('sel'); });
+        if (box.children[r.answer]) box.children[r.answer].classList.add('ok');
+        if (!r.correct && box.children[i]) box.children[i].classList.add('no');
+        try { if (navigator.vibrate) navigator.vibrate(r.correct ? 30 : [60, 40, 60]); } catch (e) { /* bỏ qua */ }
+        gmState(r.state);
+        $('gm-fb').textContent = r.correct ? '✦ Chính xác! +' + r.gained + ' XP' : (r.late ? 'Hết giờ mất rồi!' : 'Chưa đúng rồi!');
+        clearTimeout(gmAuto);
+        if (r.next) {
+          var go = function () { clearTimeout(gmAuto); gmShowQ({ q: r.next.q, o: r.next.o, seconds: r.next.seconds, state: r.state }, my); };
+          gmAct([{ label: 'Câu tiếp ›', fn: go }]);
+          gmAuto = setTimeout(go, r.correct ? 900 : 1500);     // tự chuyển câu, đáp án đúng vẫn kịp thấy
+        } else {
+          gmAct([{ label: 'Tiếp tục', fn: gmHome }]);
+          gmAuto = setTimeout(function () { if (my === gmSess) gmHome(); }, 1500);
+        }
+      }).catch(function () { if (my === gmSess) { $('gm-fb').textContent = 'Mất kết nối, câu này chưa được tính.'; gmAct([{ label: 'Quay lại', fn: gmHome }]); } });
+    }
+    d.o.forEach(function (txt, i) { var b = document.createElement('button'); b.type = 'button'; b.textContent = String.fromCharCode(65 + i) + '. ' + txt; b.addEventListener('click', function () { pick(i); }); box.appendChild(b); });
+    gmSwap();
+    gmRunTimer(d.seconds, function () { pick(-1); });
+  }
   function gmNext() {
-    if (gmBusy) return; gmBusy = true; gmReset('Đang chuẩn bị câu hỏi…');
+    if (gmBusy) return; gmBusy = true; var my = gmSess; gmReset('Đang chuẩn bị câu hỏi…');
     callServer({ action: 'game_next', id: saved.id }).then(function (d) {
       if (d && d.ok && !d.o) throw gmOld();
       if (!d || !d.ok) { if (d && d.state) gmState(d.state); gmReset(GM_ERR[d && d.error] || 'Chưa lấy được câu hỏi.'); gmAct([{ label: 'Quay lại', fn: gmHome }]); return; }
-      gmState(d.state); gmReset('Câu ' + (d.state.asked + 1)); $('gm-q').textContent = d.q;
-      var box = $('gm-opts'), done = false;
-      function pick(i) {
-        if (done) return; done = true; gmStopTimer();
-        [].forEach.call(box.children, function (b) { b.disabled = true; });
-        callServer({ action: 'game_answer', id: saved.id, name: saved.name, choice: i }).then(function (r) {
-          if (!r || !r.ok) { $('gm-fb').textContent = GM_ERR[r && r.error] || 'Chưa ghi nhận được câu trả lời.'; gmAct([{ label: 'Quay lại', fn: gmHome }]); return; }
-          if (box.children[r.answer]) box.children[r.answer].classList.add('ok');
-          if (!r.correct && box.children[i]) box.children[i].classList.add('no');
-          gmState(r.state);
-          $('gm-fb').textContent = r.correct ? '✦ Chính xác! +' + r.gained + ' XP' : (r.late ? 'Hết giờ mất rồi!' : 'Chưa đúng rồi!');
-          gmAct([{ label: r.state.unlocked ? 'Tiếp tục' : (r.state.asked >= r.state.maxAsked ? 'Xong' : 'Câu tiếp'), fn: r.state.unlocked || r.state.asked >= r.state.maxAsked ? gmHome : gmNext }]);
-        }).catch(function () { $('gm-fb').textContent = 'Mất kết nối, câu này chưa được tính.'; gmAct([{ label: 'Quay lại', fn: gmHome }]); });
-      }
-      d.o.forEach(function (txt, i) { var b = document.createElement('button'); b.type = 'button'; b.textContent = String.fromCharCode(65 + i) + '. ' + txt; b.addEventListener('click', function () { pick(i); }); box.appendChild(b); });
-      gmRunTimer(d.seconds, function () { pick(-1); });
+      gmShowQ(d, my);
     }).catch(function (e) { gmReset('Chưa chơi được'); $('gm-fb').textContent = gmFailText(e); gmAct([{ label: 'Thử lại', fn: gmHome }]); })
     .then(function () { gmBusy = false; });
   }
@@ -1628,7 +1656,7 @@
     }).catch(function (e) { gmReset('Chưa chơi được'); $('gm-fb').textContent = gmFailText(e); gmAct([{ label: 'Thử lại', fn: gmHome }]); })
     .then(function () { gmBusy = false; });
   }
-  $('pf-game').addEventListener('click', function () { if (!saved) return; gmPrevOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; gmPop.hidden = false; gmHome(); });
+  $('pf-game').addEventListener('click', function () { if (!saved) return; gmSess++; gmPrevOverflow = document.body.style.overflow; document.body.style.overflow = 'hidden'; gmPop.hidden = false; gmHome(); });
   $('gm-x').addEventListener('click', gmClose);
 
   // Ghi nhận tài khoản đã đăng nhập (admin xem trong mục "Tài khoản đã đăng nhập"). Mỗi lần mở trang chỉ gửi một lần.
